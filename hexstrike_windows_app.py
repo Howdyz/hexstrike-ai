@@ -82,7 +82,7 @@ def start_server():
 def build_ui():
     root = tk.Tk()
     root.title("HexStrike AI (Windows)")
-    root.geometry("560x400")
+    root.geometry("640x400")
     root.configure(bg="#14110F")
 
     fg = "#F2EDE1"
@@ -111,19 +111,23 @@ def build_ui():
     def open_dashboard():
         webbrowser.open(DASHBOARD_URL)
 
+    def open_manual_guide():
+        webbrowser.open("https://github.com/Howdyz/hexstrike-ai/blob/master/WINDOWS-MANUAL-TOOLS.md")
+
     def do_quit():
         os._exit(0)
 
-    def mk_button(parent, text, cmd, bg):
-        b = tk.Button(parent, text=text, command=cmd, bg=bg, fg="#14110F",
-                      activebackground=bg, font=("Segoe UI", 10, "bold"),
-                      relief="flat", padx=14, pady=8, cursor="hand2")
+    def mk_button(parent, text, cmd, bg, fg="#14110F"):
+        b = tk.Button(parent, text=text, command=cmd, bg=bg, fg=fg,
+                      activebackground=bg, font=("Segoe UI", 9, "bold"),
+                      relief="flat", padx=10, pady=8, cursor="hand2")
         return b
 
     install_btn = mk_button(btn_frame, "📦 Install Tools", lambda: None, accent)
-    mk_button(btn_frame, "Open Dashboard →", open_dashboard, accent).grid(row=0, column=1, padx=6)
-    mk_button(btn_frame, "🛑 Stop && Quit", do_quit, warn).grid(row=0, column=2, padx=6)
-    install_btn.grid(row=0, column=0, padx=6)
+    mk_button(btn_frame, "Open Dashboard →", open_dashboard, accent).grid(row=0, column=1, padx=4)
+    mk_button(btn_frame, "📖 Other Tools' Install Guide", open_manual_guide, dim, fg="#14110F").grid(row=0, column=2, padx=4)
+    mk_button(btn_frame, "🛑 Stop && Quit", do_quit, warn).grid(row=0, column=3, padx=4)
+    install_btn.grid(row=0, column=0, padx=4)
 
     log_box = scrolledtext.ScrolledText(root, height=8, width=62, bg="#1C1814", fg=dim,
                                           font=("Consolas", 8), relief="flat")
