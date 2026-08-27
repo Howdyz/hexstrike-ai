@@ -47,6 +47,11 @@ import tkinter as tk
 from tkinter import scrolledtext
 
 import hexstrike_server as hx  # noqa: E402  (must come after the stdout/stderr guard above)
+import hexstrike_tool_installer as tool_installer  # noqa: E402
+
+# A previous run may have already installed tools to %LOCALAPPDATA%\HexStrike\tools —
+# make them visible to this run's subprocess calls immediately, no re-download needed.
+tool_installer.apply_to_path()
 
 HOST = "127.0.0.1"
 PORT = hx.API_PORT
@@ -77,7 +82,7 @@ def start_server():
 def build_ui():
     root = tk.Tk()
     root.title("HexStrike AI (Windows)")
-    root.geometry("520x340")
+    root.geometry("560x400")
     root.configure(bg="#14110F")
 
     fg = "#F2EDE1"
@@ -115,22 +120,26 @@ def build_ui():
                       relief="flat", padx=14, pady=8, cursor="hand2")
         return b
 
-    mk_button(btn_frame, "Open Dashboard →", open_dashboard, accent).grid(row=0, column=0, padx=6)
-    mk_button(btn_frame, "🛑 Stop && Quit", do_quit, warn).grid(row=0, column=1, padx=6)
+    install_btn = mk_button(btn_frame, "📦 Install Tools", lambda: None, accent)
+    mk_button(btn_frame, "Open Dashboard →", open_dashboard, accent).grid(row=0, column=1, padx=6)
+    mk_button(btn_frame, "🛑 Stop && Quit", do_quit, warn).grid(row=0, column=2, padx=6)
+    install_btn.grid(row=0, column=0, padx=6)
 
     log_box = scrolledtext.ScrolledText(root, height=8, width=62, bg="#1C1814", fg=dim,
                                           font=("Consolas", 8), relief="flat")
     log_box.pack(pady=(16, 10), padx=16)
     log_box.configure(state="disabled")
 
+    def log_line(msg):
+        log_box.configure(state="normal")
+        log_box.insert(tk.END, str(msg).rstrip("\n") + "\n")
+        log_box.see(tk.END)
+        log_box.configure(state="disabled")
+
     class _TkLogHandler:
         def write(self, msg):
-            if not msg.strip():
-                return
-            log_box.configure(state="normal")
-            log_box.insert(tk.END, msg if msg.endswith("\n") else msg + "\n")
-            log_box.see(tk.END)
-            log_box.configure(state="disabled")
+            if msg.strip():
+                log_line(msg)
 
         def flush(self):
             pass
@@ -139,6 +148,30 @@ def build_ui():
     handler = logging.StreamHandler(_TkLogHandler())
     handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s', datefmt='%H:%M:%S'))
     hx.logger.addHandler(handler)
+
+    _installing = threading.Event()
+
+    def do_install_tools():
+        if _installing.is_set():
+            return
+        _installing.set()
+        install_btn.configure(state="disabled", text="Installing…")
+        log_line("— Installing tools (nmap, hashcat, nuclei, httpx, subfinder, katana, ffuf, gobuster, dalfox) —")
+
+        def worker():
+            try:
+                # log_line() touches the Tk widget; schedule each line onto the
+                # main thread instead of calling it directly from this worker.
+                tool_installer.install_all(log=lambda m: root.after(0, log_line, m))
+            finally:
+                root.after(0, lambda: (install_btn.configure(state="normal", text="📦 Install Tools"),
+                                        _installing.clear()))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    install_btn.configure(command=do_install_tools)
+    if tool_installer.already_installed():
+        log_line(f"Previously installed tools found at {tool_installer.TOOLS_DIR} — added to PATH for this session.")
 
     def poll_status():
         if _server_started.is_set():
