@@ -12,6 +12,7 @@ on:
     paths:
       - 'hexstrike_server.py'
       - 'hexstrike_windows_app.py'
+      - 'hexstrike_tool_installer.py'
       - 'hexstrike_windows.spec'
       - 'requirements-windows.txt'
       - 'dashboard.html'
