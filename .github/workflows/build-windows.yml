@@ -1,4 +1,3 @@
-
 name: Build Windows exe
 
 # PyInstaller can't cross-compile, so this has to run on an actual Windows
@@ -15,6 +14,7 @@ on:
       - 'hexstrike_windows_app.py'
       - 'hexstrike_windows.spec'
       - 'requirements-windows.txt'
+      - 'dashboard.html'
       - '.github/workflows/build-windows.yml'
   workflow_dispatch: {}
 
