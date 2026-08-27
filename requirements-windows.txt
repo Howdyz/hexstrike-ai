@@ -1,0 +1,26 @@
+# HexStrike AI — Windows build dependencies
+#
+# This is a trimmed copy of requirements.txt for the onefile Windows .exe
+# built by .github/workflows/build-windows.yml. hexstrike_server.py itself
+# never imports pwntools or angr at module level — both only appear as text
+# templates for exploit/analysis scripts it writes to a temp file and runs
+# via a *separate* subprocess. pwntools cannot install on native Windows at
+# all (it needs POSIX ptrace/pty/fcntl), and angr's Windows wheels are large,
+# unofficial, and not worth the build weight for two endpoints that already
+# fail gracefully (as a normal JSON error, not a crash) when that separate
+# subprocess's interpreter doesn't have the module. Every other tool
+# integration (the ~148 endpoints that just shell out to a CLI security
+# tool) is unaffected and kept at full parity.
+#
+# fastmcp is also omitted: it's only used by hexstrike_mcp.py (the separate
+# MCP-client entry point), never imported by hexstrike_server.py.
+
+flask>=2.3.0,<4.0.0
+requests>=2.31.0,<3.0.0
+psutil>=5.9.0,<6.0.0
+beautifulsoup4>=4.12.0,<5.0.0
+selenium>=4.15.0,<5.0.0
+webdriver-manager>=4.0.0,<5.0.0
+aiohttp>=3.8.0,<4.0.0
+mitmproxy>=9.0.0,<11.0.0
+pyinstaller>=6.0.0

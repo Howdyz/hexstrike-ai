@@ -36,10 +36,11 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from collections import OrderedDict
 import shutil
+import tempfile
 import venv
 import zipfile
 from pathlib import Path
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import psutil
 import signal
 import requests
@@ -66,28 +67,34 @@ from mitmproxy.tools.dump import DumpMaster
 from mitmproxy.options import Options as MitmOptions
 
 # ============================================================================
+# CROSS-PLATFORM TEMP PATHS (Windows has no /tmp) — every call site below that
+# used to hardcode "/tmp/..." now builds its path through this helper instead.
+# ============================================================================
+
+def tmp_path(*parts: str) -> str:
+    return os.path.join(tempfile.gettempdir(), *parts)
+
+# ============================================================================
 # LOGGING CONFIGURATION (MUST BE FIRST)
 # ============================================================================
 
 # Configure logging with fallback for permission issues
+# (sys.stdout is None under a windowed/--noconsole PyInstaller build on
+# Windows — only attach a console handler when a real stream exists, and log
+# to a known-writable temp path rather than the process's current directory,
+# which a double-clicked .exe can't rely on.)
+_log_handlers = []
+if sys.stdout is not None:
+    _log_handlers.append(logging.StreamHandler(sys.stdout))
 try:
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler('hexstrike.log')
-        ]
-    )
+    _log_handlers.append(logging.FileHandler(tmp_path('hexstrike.log')))
 except PermissionError:
-    # Fallback to console-only logging if file creation fails
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
+    pass
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=_log_handlers
+)
 logger = logging.getLogger(__name__)
 
 # Flask app configuration
@@ -97,6 +104,82 @@ app.config['JSON_SORT_KEYS'] = False
 # API Configuration
 API_PORT = int(os.environ.get('HEXSTRIKE_PORT', 8888))
 API_HOST = os.environ.get('HEXSTRIKE_HOST', '127.0.0.1')
+
+# ============================================================================
+# PROTECTED TARGET GUARD — refuses to run any tool against Truth Button's own
+# infrastructure, regardless of which endpoint or parameter name is used.
+# ============================================================================
+
+PROTECTED_DOMAINS = [
+    'projectsilverbeam.com',
+    'www.projectsilverbeam.com',
+    'api.projectsilverbeam.com',
+    'truth-button-backend.onrender.com',
+]
+
+def _resolve_protected_ips():
+    """Best-effort DNS resolution of protected domains, so a raw IP can't be
+    used to route around the hostname check. Non-fatal if resolution fails —
+    hostname-based blocking still applies either way."""
+    ips = set()
+    for domain in PROTECTED_DOMAINS:
+        try:
+            for info in socket.getaddrinfo(domain, None):
+                ips.add(info[4][0])
+        except Exception:
+            pass
+    return ips
+
+PROTECTED_IPS = _resolve_protected_ips()
+if PROTECTED_IPS:
+    logger.info(f"🛡️  Protected target guard active — blocking {len(PROTECTED_DOMAINS)} domain(s), resolved to {len(PROTECTED_IPS)} IP(s)")
+else:
+    logger.warning("🛡️  Protected target guard active — domain blocking only (DNS resolution unavailable at startup)")
+
+def _iter_strings(value):
+    """Recursively yield every string leaf inside a JSON-like structure."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for v in value.values():
+            yield from _iter_strings(v)
+    elif isinstance(value, (list, tuple)):
+        for v in value:
+            yield from _iter_strings(v)
+
+def _value_hits_protected_target(s):
+    low = s.strip().lower()
+    if not low:
+        return False
+    for domain in PROTECTED_DOMAINS:
+        if domain in low:
+            return True
+    for ip in PROTECTED_IPS:
+        if ip and ip in low:
+            return True
+    return False
+
+@app.before_request
+def _block_protected_targets():
+    """Inspects every incoming request's JSON body and query string for any
+    value that references Truth Button's own domains/IPs, and rejects the
+    request before any tool runs. Applies to every route uniformly — it does
+    not need to know each endpoint's specific parameter name (target, host,
+    url, domain, ip, ...)."""
+    candidates = []
+    body = request.get_json(silent=True)
+    if body is not None:
+        candidates.extend(_iter_strings(body))
+    for v in request.args.values():
+        candidates.append(v)
+
+    for value in candidates:
+        if _value_hits_protected_target(value):
+            logger.warning(f"🚫 Blocked request to {request.path} — target references protected Truth Button infrastructure: {value!r}")
+            return jsonify({
+                "error": "target_blocked",
+                "message": "This target references Truth Button's own infrastructure (projectsilverbeam.com / its backend), which this tool is not permitted to scan or attack.",
+            }), 403
 
 # ============================================================================
 # MODERN VISUAL ENGINE (v2.0 ENHANCEMENT)
@@ -1291,7 +1374,7 @@ class IntelligentDecisionEngine:
             params["timeout"] = 600
 
         # Set output directory
-        params["output_dir"] = f"/tmp/autorecon_{profile.target.replace('.', '_')}"
+        params["output_dir"] = tmp_path(f"autorecon_{profile.target.replace('.', '_')}")
 
         return params
 
@@ -1384,7 +1467,7 @@ class IntelligentDecisionEngine:
 
         # Set output format and directory
         params["output_format"] = "json"
-        params["output_dir"] = f"/tmp/prowler_{params['provider']}"
+        params["output_dir"] = tmp_path(f"prowler_{params['provider']}")
 
         return params
 
@@ -1401,7 +1484,7 @@ class IntelligentDecisionEngine:
             params["profile"] = context["aws_profile"]
 
         # Set report directory
-        params["report_dir"] = f"/tmp/scout-suite_{params['provider']}"
+        params["report_dir"] = tmp_path(f"scout-suite_{params['provider']}")
 
         return params
 
@@ -3556,7 +3639,7 @@ class CTFToolManager:
 
             # Forensics Investigation Tools
             "binwalk": "binwalk -e --dd='.*'",
-            "foremost": "foremost -i {} -o /tmp/foremost_output",
+            "foremost": f"foremost -i {{}} -o {tmp_path('foremost_output')}",
             "photorec": "photorec /log /cmd",
             "testdisk": "testdisk /log",
             "exiftool": "exiftool -all",
@@ -3574,7 +3657,7 @@ class CTFToolManager:
             "autopsy": "autopsy",
             "sleuthkit": "fls -r",
             "scalpel": "scalpel -c /etc/scalpel/scalpel.conf",
-            "bulk-extractor": "bulk_extractor -o /tmp/bulk_output",
+            "bulk-extractor": f"bulk_extractor -o {tmp_path('bulk_output')}",
             "ddrescue": "ddrescue",
             "dc3dd": "dc3dd",
 
@@ -5263,8 +5346,8 @@ class EnhancedProcessManager:
             resource_usage = self.resource_monitor.get_current_usage()
 
             # Adjust command based on resource availability
-            if resource_usage["cpu_percent"] > self.resource_thresholds["cpu_high"]:
-                # Add nice priority for CPU-intensive commands
+            if os.name != 'nt' and resource_usage["cpu_percent"] > self.resource_thresholds["cpu_high"]:
+                # Add nice priority for CPU-intensive commands (no equivalent shell prefix on Windows)
                 if not command.startswith("nice"):
                     command = f"nice -n 10 {command}"
 
@@ -5705,7 +5788,7 @@ class ProcessManager:
 class PythonEnvironmentManager:
     """Manage Python virtual environments and dependencies"""
 
-    def __init__(self, base_dir: str = "/tmp/hexstrike_envs"):
+    def __init__(self, base_dir: str = tmp_path("hexstrike_envs")):
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(exist_ok=True)
 
@@ -8928,7 +9011,7 @@ def _determine_operation_type(tool_name: str) -> str:
 class FileOperationsManager:
     """Handle file operations with security and validation"""
 
-    def __init__(self, base_dir: str = "/tmp/hexstrike_files"):
+    def __init__(self, base_dir: str = tmp_path("hexstrike_files")):
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(exist_ok=True)
         self.max_file_size = 100 * 1024 * 1024  # 100MB
@@ -9020,6 +9103,12 @@ file_manager = FileOperationsManager()
 
 # API Routes
 
+@app.route("/", methods=["GET"])
+@app.route("/dashboard", methods=["GET"])
+def dashboard():
+    """Serve the HexStrike control-deck GUI"""
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
+
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint with comprehensive tool detection"""
@@ -9084,8 +9173,8 @@ def health_check():
 
     additional_tools = [
         "smbmap", "volatility", "sleuthkit", "autopsy", "evil-winrm",
-        "paramspider", "airmon-ng", "airodump-ng", "aireplay-ng", "aircrack-ng",
-        "msfvenom", "msfconsole", "graphql-scanner", "jwt-analyzer"
+        "airmon-ng", "airodump-ng", "aireplay-ng", "aircrack-ng",
+        "msfvenom", "msfconsole"
     ]
 
     all_tools = (
@@ -9097,7 +9186,7 @@ def health_check():
 
     for tool in all_tools:
         try:
-            result = execute_command(f"which {tool}", use_cache=True)
+            result = execute_command(f"{'where' if os.name == 'nt' else 'which'} {tool}", use_cache=True)
             tools_status[tool] = result["success"]
         except:
             tools_status[tool] = False
@@ -9133,6 +9222,20 @@ def health_check():
         "telemetry": telemetry.get_stats(),
         "uptime": time.time() - telemetry.stats["start_time"]
     })
+
+@app.route("/api/kill-switch", methods=["POST"])
+def kill_switch():
+    """Terminate this HexStrike server process immediately. No payload, no target —
+    only ever acts on the running process itself, for one-click shutdown from a
+    remote dashboard/launcher without going through the generic command endpoint."""
+    logger.warning("Kill switch triggered — shutting down HexStrike server")
+
+    def _terminate():
+        time.sleep(0.3)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    threading.Thread(target=_terminate, daemon=True).start()
+    return jsonify({"status": "shutting_down", "pid": os.getpid()}), 200
 
 @app.route("/api/command", methods=["POST"])
 def generic_command():
@@ -10495,7 +10598,7 @@ def prowler():
         profile = params.get("profile", "default")
         region = params.get("region", "")
         checks = params.get("checks", "")
-        output_dir = params.get("output_dir", "/tmp/prowler_output")
+        output_dir = params.get("output_dir", tmp_path("prowler_output"))
         output_format = params.get("output_format", "json")
         additional_args = params.get("additional_args", "")
 
@@ -10585,7 +10688,7 @@ def scout_suite():
         params = request.json
         provider = params.get("provider", "aws")  # aws, azure, gcp, aliyun, oci
         profile = params.get("profile", "default")
-        report_dir = params.get("report_dir", "/tmp/scout-suite")
+        report_dir = params.get("report_dir", tmp_path("scout-suite"))
         services = params.get("services", "")
         exceptions = params.get("exceptions", "")
         additional_args = params.get("additional_args", "")
@@ -10679,7 +10782,7 @@ def pacu():
         commands.append("exit")
 
         # Create command file
-        command_file = "/tmp/pacu_commands.txt"
+        command_file = tmp_path("pacu_commands.txt")
         with open(command_file, "w") as f:
             f.write("\n".join(commands))
 
@@ -10770,7 +10873,7 @@ def kube_bench():
             command += f" --config-dir {config_dir}"
 
         if output_format:
-            command += f" --outputfile /tmp/kube-bench-results.{output_format} --json"
+            command += f" --outputfile {tmp_path(f'kube-bench-results.{output_format}')} --json"
 
         if additional_args:
             command += f" {additional_args}"
@@ -10790,7 +10893,7 @@ def docker_bench_security():
         params = request.json
         checks = params.get("checks", "")  # Specific checks to run
         exclude = params.get("exclude", "")  # Checks to exclude
-        output_file = params.get("output_file", "/tmp/docker-bench-results.json")
+        output_file = params.get("output_file", tmp_path("docker-bench-results.json"))
         additional_args = params.get("additional_args", "")
 
         command = "docker-bench-security"
@@ -11067,7 +11170,7 @@ def metasploit():
         resource_content += "exploit\n"
 
         # Save resource script to a temporary file
-        resource_file = "/tmp/mcp_msf_resource.rc"
+        resource_file = tmp_path("mcp_msf_resource.rc")
         with open(resource_file, "w") as f:
             f.write(resource_content)
 
@@ -11626,7 +11729,7 @@ def autorecon():
     try:
         params = request.json
         target = params.get("target", "")
-        output_dir = params.get("output_dir", "/tmp/autorecon")
+        output_dir = params.get("output_dir", tmp_path("autorecon"))
         port_scans = params.get("port_scans", "top-100-ports")
         service_scans = params.get("service_scans", "default")
         heartbeat = params.get("heartbeat", 60)
@@ -11979,7 +12082,7 @@ def gdb():
             command += f" -x {script_file}"
 
         if commands:
-            temp_script = "/tmp/gdb_commands.txt"
+            temp_script = tmp_path("gdb_commands.txt")
             with open(temp_script, "w") as f:
                 f.write(commands)
             command += f" -x {temp_script}"
@@ -11992,9 +12095,9 @@ def gdb():
         logger.info(f"🔧 Starting GDB analysis: {binary}")
         result = execute_command(command)
 
-        if commands and os.path.exists("/tmp/gdb_commands.txt"):
+        if commands and os.path.exists(tmp_path("gdb_commands.txt")):
             try:
-                os.remove("/tmp/gdb_commands.txt")
+                os.remove(tmp_path("gdb_commands.txt"))
             except:
                 pass
 
@@ -12022,7 +12125,7 @@ def radare2():
             }), 400
 
         if commands:
-            temp_script = "/tmp/r2_commands.txt"
+            temp_script = tmp_path("r2_commands.txt")
             with open(temp_script, "w") as f:
                 f.write(commands)
             command = f"r2 -i {temp_script} -q {binary}"
@@ -12035,9 +12138,9 @@ def radare2():
         logger.info(f"🔧 Starting Radare2 analysis: {binary}")
         result = execute_command(command)
 
-        if commands and os.path.exists("/tmp/r2_commands.txt"):
+        if commands and os.path.exists(tmp_path("r2_commands.txt")):
             try:
-                os.remove("/tmp/r2_commands.txt")
+                os.remove(tmp_path("r2_commands.txt"))
             except:
                 pass
 
@@ -12268,7 +12371,7 @@ def ghidra():
             return jsonify({"error": "Binary parameter is required"}), 400
 
         # Create Ghidra project directory
-        project_dir = f"/tmp/ghidra_projects/{project_name}"
+        project_dir = tmp_path("ghidra_projects", project_name)
         os.makedirs(project_dir, exist_ok=True)
 
         # Base Ghidra command for headless analysis
@@ -12308,7 +12411,7 @@ def pwntools():
             return jsonify({"error": "Script content or target binary is required"}), 400
 
         # Create temporary Python script
-        script_file = "/tmp/pwntools_exploit.py"
+        script_file = tmp_path("pwntools_exploit.py")
 
         if script_content:
             # Use provided script content
@@ -12462,7 +12565,7 @@ def gdb_peda():
 
         # Create command script
         if commands:
-            temp_script = "/tmp/gdb_peda_commands.txt"
+            temp_script = tmp_path("gdb_peda_commands.txt")
             peda_commands = f"""
 source ~/peda/peda.py
 {commands}
@@ -12483,9 +12586,9 @@ quit
         result = execute_command(command)
 
         # Cleanup
-        if commands and os.path.exists("/tmp/gdb_peda_commands.txt"):
+        if commands and os.path.exists(tmp_path("gdb_peda_commands.txt")):
             try:
-                os.remove("/tmp/gdb_peda_commands.txt")
+                os.remove(tmp_path("gdb_peda_commands.txt"))
             except:
                 pass
 
@@ -12512,7 +12615,7 @@ def angr():
             return jsonify({"error": "Binary parameter is required"}), 400
 
         # Create angr script
-        script_file = "/tmp/angr_analysis.py"
+        script_file = tmp_path("angr_analysis.py")
 
         if script_content:
             with open(script_file, "w") as f:
@@ -13684,7 +13787,7 @@ class BrowserAgent:
             time.sleep(wait_time)
 
             # Take screenshot
-            screenshot_path = f"/tmp/hexstrike_screenshot_{int(time.time())}.png"
+            screenshot_path = tmp_path(f"hexstrike_screenshot_{int(time.time())}.png")
             self.driver.save_screenshot(screenshot_path)
             self.screenshots.append(screenshot_path)
 
@@ -14186,7 +14289,7 @@ def browser_agent_endpoint():
                     400,
                 )
 
-            screenshot_path = f"/tmp/hexstrike_screenshot_{int(time.time())}.png"
+            screenshot_path = tmp_path(f"hexstrike_screenshot_{int(time.time())}.png")
             browser_agent.driver.save_screenshot(screenshot_path)
 
             return jsonify(
@@ -15278,7 +15381,7 @@ def foremost():
     try:
         params = request.json
         input_file = params.get("input_file", "")
-        output_dir = params.get("output_dir", "/tmp/foremost_output")
+        output_dir = params.get("output_dir", tmp_path("foremost_output"))
         file_types = params.get("file_types", "")
         additional_args = params.get("additional_args", "")
 
@@ -16466,7 +16569,7 @@ def ctf_forensics_analyzer():
                     elif tool == "zsteg":
                         steg_result = subprocess.run([tool, '-a', file_path], capture_output=True, text=True, timeout=30)
                     elif tool == "outguess":
-                        steg_result = subprocess.run([tool, '-r', file_path, '/tmp/outguess_output'], capture_output=True, text=True, timeout=30)
+                        steg_result = subprocess.run([tool, '-r', file_path, tmp_path('outguess_output')], capture_output=True, text=True, timeout=30)
 
                     if steg_result.returncode == 0 and steg_result.stdout.strip():
                         results["steganography_results"].append({
