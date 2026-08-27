@@ -101,6 +101,38 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
+# ============================================================================
+# CORS / Private Network Access — the dashboard's own pages (opened via direct
+# navigation) never needed this, but the Truth Button site's Check Connection
+# / Stop Server buttons call this API via fetch() from a public HTTPS origin.
+# Chrome's Private Network Access policy blocks that fetch outright (not just
+# hides the response) unless the server explicitly answers with these headers
+# on every response, including the preflight OPTIONS request Chrome sends
+# first — so this has to run before any route sees the request.
+# ============================================================================
+_CORS_ALLOWED_ORIGINS = {
+    "https://projectsilverbeam.com",
+    "https://www.projectsilverbeam.com",
+}
+
+def _cors_origin_allowed(origin):
+    if not origin:
+        return False
+    if origin in _CORS_ALLOWED_ORIGINS:
+        return True
+    return origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:")
+
+@app.after_request
+def _add_cors_headers(response):
+    origin = request.headers.get("Origin")
+    if _cors_origin_allowed(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-HexStrike-Launcher"
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+        response.headers["Vary"] = "Origin"
+    return response
+
 # API Configuration
 API_PORT = int(os.environ.get('HEXSTRIKE_PORT', 8888))
 API_HOST = os.environ.get('HEXSTRIKE_HOST', '127.0.0.1')
