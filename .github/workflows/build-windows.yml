@@ -1,1 +1,67 @@
 
+name: Build Windows exe
+
+# PyInstaller can't cross-compile, so this has to run on an actual Windows
+# runner — this workflow is the only place HexStrikeAI-Windows.exe gets
+# built. It publishes to a single rolling release tag ("windows-build") so
+# the site can always link to .../releases/latest/download/HexStrikeAI-Windows.exe
+# regardless of which run produced it.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'hexstrike_server.py'
+      - 'hexstrike_windows_app.py'
+      - 'hexstrike_windows.spec'
+      - 'requirements-windows.txt'
+      - '.github/workflows/build-windows.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-windows.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller hexstrike_windows.spec
+
+      - name: Verify exe was produced
+        run: |
+          if (!(Test-Path "dist/HexStrikeAI-Windows.exe")) {
+            throw "PyInstaller did not produce dist/HexStrikeAI-Windows.exe"
+          }
+        shell: pwsh
+
+      - name: Upload build artifact (per-run, for debugging failed releases)
+        uses: actions/upload-artifact@v4
+        with:
+          name: HexStrikeAI-Windows
+          path: dist/HexStrikeAI-Windows.exe
+          retention-days: 14
+
+      - name: Publish / update rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-build
+          name: HexStrike AI — Windows build
+          body: |
+            Automatically built from commit ${{ github.sha }} by build-windows.yml.
+            Download HexStrikeAI-Windows.exe below and double-click it — no install,
+            no terminal. See the site's Ultimate Tool Kit — Windows panel for the
+            safety terms before you use it.
+          make_latest: true
+          files: dist/HexStrikeAI-Windows.exe
