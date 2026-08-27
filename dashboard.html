@@ -1,0 +1,6467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HexStrike AI &mdash; Control Deck</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%E2%9A%A1</text></svg>">
+<style>
+:root{
+  --bg-0:#07090c;
+  --bg-1:#0c1015;
+  --bg-2:#12171e;
+  --bg-3:#1a212b;
+  --bg-4:#232b37;
+  --line:#232c38;
+  --line-soft:#1a212b;
+  --text-0:#eef3f8;
+  --text-1:#aab6c4;
+  --text-2:#6d7a8a;
+  --accent:#39ff8f;
+  --accent-dim:#1c8a52;
+  --accent-glow:rgba(57,255,143,.35);
+  --red:#ff4d5e;
+  --red-dim:#7a1c26;
+  --orange:#ff9f43;
+  --blue:#4fc3ff;
+  --purple:#b57bff;
+  --yellow:#ffd166;
+  --mono: 'JetBrains Mono','Fira Code',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif;
+  --r-sm:6px; --r-md:10px; --r-lg:16px;
+  --shadow-1: 0 8px 24px rgba(0,0,0,.35);
+  --shadow-glow: 0 0 0 1px var(--accent-glow), 0 0 24px -4px var(--accent-glow);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  background:
+    radial-gradient(1200px 700px at 15% -10%, rgba(57,255,143,.06), transparent 60%),
+    radial-gradient(900px 600px at 110% 10%, rgba(255,77,94,.05), transparent 55%),
+    var(--bg-0);
+  color:var(--text-0);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--accent);color:#04140b;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bg-4);border-radius:8px;border:2px solid var(--bg-0);}
+::-webkit-scrollbar-thumb:hover{background:var(--accent-dim);}
+a{color:inherit;}
+button{font-family:inherit;}
+
+.app{display:grid;grid-template-columns:252px 1fr;grid-template-rows:56px 1fr;height:100vh;overflow:hidden;}
+
+/* ---------- Topbar ---------- */
+.topbar{
+  grid-column:1/3; grid-row:1;
+  display:flex; align-items:center; gap:16px;
+  padding:0 18px;
+  background:linear-gradient(180deg,var(--bg-1),rgba(12,16,21,.85));
+  border-bottom:1px solid var(--line);
+  backdrop-filter: blur(10px);
+  z-index:20;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.02em;white-space:nowrap;}
+.brand-mark{
+  width:28px;height:28px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--accent),#0a3d24);
+  color:#04140b; font-size:15px; box-shadow:var(--shadow-glow);
+}
+.brand-name{font-size:15px;}
+.brand-name .v{color:var(--text-2);font-weight:500;font-size:11px;margin-left:4px;font-family:var(--mono);}
+
+.search-wrap{flex:1;max-width:520px;position:relative;}
+.search-wrap input{
+  width:100%; background:var(--bg-2); border:1px solid var(--line);
+  color:var(--text-0); padding:9px 12px 9px 34px; border-radius:var(--r-md);
+  font-size:13px; outline:none; transition:.15s border-color,.15s box-shadow;
+}
+.search-wrap input:focus{border-color:var(--accent-dim); box-shadow:0 0 0 3px rgba(57,255,143,.08);}
+.search-wrap svg{position:absolute; left:11px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:var(--text-2);}
+.search-kbd{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10px;color:var(--text-2);background:var(--bg-3);border:1px solid var(--line);padding:2px 5px;border-radius:4px;}
+
+.topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto;}
+.target-input{display:flex;align-items:center;gap:6px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md);padding:6px 10px;}
+.target-input label{font-size:10px;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono);}
+.target-input input{background:transparent;border:none;outline:none;color:var(--accent);font-family:var(--mono);font-size:12.5px;width:150px;}
+
+.conn-badge{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-1);padding:6px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--bg-2);cursor:pointer;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--text-2);box-shadow:0 0 0 3px rgba(255,255,255,.03);}
+.dot.on{background:var(--accent);box-shadow:0 0 8px var(--accent-glow),0 0 0 3px rgba(57,255,143,.12);}
+.dot.off{background:var(--red);box-shadow:0 0 8px rgba(255,77,94,.4),0 0 0 3px rgba(255,77,94,.12);}
+.dot.pulse{animation:pulse 1.6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  grid-column:1; grid-row:2;
+  background:var(--bg-1); border-right:1px solid var(--line);
+  overflow-y:auto; padding:14px 10px 24px;
+}
+.nav-group{margin-bottom:4px;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:var(--r-sm);
+  cursor:pointer;color:var(--text-1);font-size:13px;font-weight:500;
+  transition:.12s background,.12s color; user-select:none;
+  border:1px solid transparent;
+}
+.nav-item:hover{background:var(--bg-2);color:var(--text-0);}
+.nav-item.active{background:rgba(57,255,143,.08);color:var(--accent);border-color:rgba(57,255,143,.18);}
+.nav-item .ic{width:16px;text-align:center;font-size:13px;opacity:.9;}
+.nav-item .count{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--text-2);background:var(--bg-3);padding:1px 6px;border-radius:20px;}
+.nav-item.active .count{color:var(--accent);background:rgba(57,255,143,.12);}
+.nav-sep{height:1px;background:var(--line-soft);margin:10px 6px;}
+.nav-label{font-size:10.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.08em;padding:14px 10px 6px;font-weight:600;}
+
+.subnav{margin-left:8px;padding-left:10px;border-left:1px solid var(--line-soft);display:none;flex-direction:column;gap:1px;margin-bottom:6px;}
+.subnav.open{display:flex;}
+.subnav .nav-item{font-size:12px;padding:6px 10px;}
+
+/* ---------- Main ---------- */
+.main{grid-column:2;grid-row:2;overflow-y:auto;position:relative;}
+.view{display:none;padding:22px 26px 60px;max-width:1400px;}
+.view.active{display:block;}
+
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap;}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.01em;}
+.page-sub{color:var(--text-2);font-size:12.5px;margin-top:4px;}
+.page-actions{display:flex;gap:8px;}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:var(--r-md);border:1px solid var(--line);
+  background:var(--bg-2);color:var(--text-0);font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:.12s all;
+}
+.btn:hover{background:var(--bg-3);border-color:var(--bg-4);}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#0f9e5b);border-color:transparent;color:#04140b;box-shadow:0 4px 14px -4px var(--accent-glow);}
+.btn.primary:hover{filter:brightness(1.08);}
+.btn.danger{background:linear-gradient(135deg,#ff5b6b,var(--red-dim));border-color:transparent;color:#fff;}
+.btn.ghost{background:transparent;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn.sm{padding:5px 10px;font-size:11.5px;}
+
+/* stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:22px;}
+.stat-card{
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 16px;
+  position:relative;overflow:hidden;
+}
+.stat-card::after{content:"";position:absolute;inset:0;background:radial-gradient(120px 60px at 100% 0%, rgba(57,255,143,.08), transparent 70%);}
+.stat-val{font-size:26px;font-weight:800;font-family:var(--mono);letter-spacing:-.01em;}
+.stat-val.accent{color:var(--accent);}
+.stat-val.red{color:var(--red);}
+.stat-label{color:var(--text-2);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;font-weight:600;}
+
+.panel{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:20px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line-soft);}
+.panel-head h3{margin:0;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.panel-body{padding:14px 16px;}
+
+/* health grid */
+.cat-bars{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;}
+.cat-bar{background:var(--bg-2);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:10px 12px;}
+.cat-bar-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:7px;}
+.cat-bar-top b{font-weight:600;color:var(--text-0);text-transform:capitalize;}
+.cat-bar-top span{color:var(--text-2);font-family:var(--mono);}
+.bar-track{height:6px;background:var(--bg-4);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--accent-dim),var(--accent));border-radius:4px;transition:width .5s;}
+
+.tool-chip-grid{display:flex;flex-wrap:wrap;gap:6px;}
+.tool-chip{display:flex;align-items:center;gap:6px;background:var(--bg-2);border:1px solid var(--line-soft);padding:5px 9px;border-radius:20px;font-size:11px;font-family:var(--mono);color:var(--text-1);}
+.tool-chip .dot{width:6px;height:6px;}
+
+/* card grid */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.chip-filter{padding:6px 12px;border-radius:20px;background:var(--bg-2);border:1px solid var(--line);font-size:11.5px;color:var(--text-1);cursor:pointer;font-weight:600;}
+.chip-filter.active{background:rgba(57,255,143,.1);color:var(--accent);border-color:rgba(57,255,143,.25);}
+
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;}
+.tool-card{
+  background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:14px 14px 12px;cursor:pointer;transition:.14s transform,.14s border-color,.14s background;
+  display:flex;flex-direction:column;gap:8px;
+}
+.tool-card:hover{border-color:var(--accent-dim);background:var(--bg-2);transform:translateY(-2px);}
+.tool-card-top{display:flex;align-items:center;justify-content:space-between;}
+.tool-name{font-family:var(--mono);font-weight:700;font-size:13.5px;color:var(--text-0);}
+.method-badge{font-family:var(--mono);font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:.03em;}
+.method-badge.GET{background:rgba(79,195,255,.14);color:var(--blue);}
+.method-badge.POST{background:rgba(57,255,143,.14);color:var(--accent);}
+.method-badge.DELETE{background:rgba(255,77,94,.14);color:var(--red);}
+.tool-doc{color:var(--text-2);font-size:11.5px;line-height:1.45;flex:1;}
+.tool-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:2px;}
+.param-count{font-size:10.5px;color:var(--text-2);font-family:var(--mono);}
+.cat-tag{font-size:9.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;font-weight:700;}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--text-2);}
+.empty-state .big{font-size:34px;margin-bottom:10px;}
+
+/* process table */
+.proc-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.proc-table th{text-align:left;color:var(--text-2);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line);}
+.proc-table td{padding:9px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+.proc-table tr:hover td{background:var(--bg-2);}
+.proc-cmd{font-family:var(--mono);font-size:11.5px;color:var(--text-1);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.status-pill{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;}
+.status-pill.running{background:rgba(57,255,143,.12);color:var(--accent);}
+.status-pill.paused{background:rgba(255,159,67,.14);color:var(--orange);}
+.status-pill.completed{background:rgba(79,195,255,.14);color:var(--blue);}
+.status-pill.terminated,.status-pill.error{background:rgba(255,77,94,.14);color:var(--red);}
+.mini-bar{width:90px;height:5px;background:var(--bg-4);border-radius:3px;overflow:hidden;}
+.mini-bar .fill{height:100%;background:var(--accent);}
+.row-actions{display:flex;gap:5px;}
+.icon-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--bg-2);color:var(--text-1);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;}
+.icon-btn:hover{border-color:var(--accent-dim);color:var(--accent);}
+.icon-btn.stop:hover{border-color:var(--red);color:var(--red);}
+
+/* drawer */
+.overlay{position:fixed;inset:0;background:rgba(4,6,9,.6);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:.2s opacity;z-index:40;}
+.overlay.open{opacity:1;pointer-events:auto;}
+.drawer{
+  position:fixed;top:0;right:0;height:100%;width:min(560px,100vw);
+  background:var(--bg-1);border-left:1px solid var(--line);
+  transform:translateX(100%);transition:.24s cubic-bezier(.2,.8,.3,1);
+  z-index:50;display:flex;flex-direction:column;box-shadow:-30px 0 60px rgba(0,0,0,.4);
+}
+.drawer.open{transform:translateX(0);}
+.drawer-head{padding:18px 20px;border-bottom:1px solid var(--line-soft);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.drawer-head h2{margin:0 0 4px;font-family:var(--mono);font-size:16px;}
+.drawer-head p{margin:0;color:var(--text-2);font-size:12px;}
+.drawer-close{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--bg-2);color:var(--text-1);cursor:pointer;flex-shrink:0;}
+.drawer-close:hover{color:var(--red);border-color:var(--red);}
+.drawer-body{flex:1;overflow-y:auto;padding:18px 20px;}
+.drawer-foot{padding:14px 20px;border-top:1px solid var(--line-soft);display:flex;gap:10px;align-items:center;}
+
+.field{margin-bottom:14px;}
+.field label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--text-1);margin-bottom:6px;font-family:var(--mono);}
+.field label .req{color:var(--red);}
+.field label .hint{color:var(--text-2);font-weight:400;font-family:var(--sans);}
+.field input[type=text],.field input[type=number],.field textarea,.field select{
+  width:100%;background:var(--bg-2);border:1px solid var(--line);color:var(--text-0);
+  padding:9px 11px;border-radius:var(--r-sm);font-size:12.5px;font-family:var(--mono);outline:none;
+}
+.field textarea{min-height:70px;resize:vertical;}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent-dim);box-shadow:0 0 0 3px rgba(57,255,143,.08);}
+.field-check{display:flex;align-items:center;gap:9px;}
+.switch{position:relative;width:36px;height:20px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:var(--bg-4);border-radius:20px;cursor:pointer;transition:.15s;}
+.slider::before{content:"";position:absolute;width:14px;height:14px;left:3px;top:3px;background:var(--text-1);border-radius:50%;transition:.15s;}
+.switch input:checked + .slider{background:var(--accent-dim);}
+.switch input:checked + .slider::before{transform:translateX(16px);background:var(--accent);}
+
+.endpoint-line{font-family:var(--mono);font-size:11px;color:var(--text-2);background:var(--bg-2);padding:8px 10px;border-radius:var(--r-sm);border:1px solid var(--line-soft);margin-bottom:16px;word-break:break-all;}
+.endpoint-line b{color:var(--accent);}
+
+.output-box{background:#04070a;border:1px solid var(--line);border-radius:var(--r-md);margin-top:8px;}
+.output-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line-soft);}
+.output-head span{font-size:10.5px;color:var(--text-2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;}
+.output-pre{margin:0;padding:12px;font-family:var(--mono);font-size:11.5px;line-height:1.6;color:#c9f7dd;white-space:pre-wrap;word-break:break-word;max-height:340px;overflow-y:auto;}
+.output-pre.err{color:#ffb3ba;}
+.spin{width:14px;height:14px;border:2px solid var(--bg-4);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* activity */
+.log-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);}
+.log-item:last-child{border-bottom:none;}
+.log-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.log-dot.ok{background:var(--accent);}
+.log-dot.fail{background:var(--red);}
+.log-main{flex:1;min-width:0;}
+.log-top{display:flex;justify-content:space-between;gap:8px;}
+.log-path{font-family:var(--mono);font-size:12px;color:var(--text-0);}
+.log-time{font-size:10.5px;color:var(--text-2);font-family:var(--mono);white-space:nowrap;}
+.log-meta{font-size:11px;color:var(--text-2);margin-top:2px;}
+
+.toast-stack{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:100;}
+.toast{background:var(--bg-2);border:1px solid var(--line);border-left:3px solid var(--accent);padding:11px 16px;border-radius:var(--r-sm);font-size:12.5px;box-shadow:var(--shadow-1);min-width:220px;animation:slidein .2s ease;}
+.toast.err{border-left-color:var(--red);}
+@keyframes slidein{from{transform:translateX(20px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* help view */
+.cmd-box{display:flex;align-items:center;gap:10px;background:#04070a;border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;margin-bottom:4px;}
+.cmd-box code{flex:1;font-family:var(--mono);font-size:12.5px;color:var(--accent);background:none;white-space:pre;overflow-x:auto;}
+.cmd-copy{width:26px;height:26px;flex-shrink:0;border-radius:6px;border:1px solid var(--line);background:var(--bg-2);color:var(--text-1);cursor:pointer;font-size:12px;}
+.cmd-copy:hover{border-color:var(--accent-dim);color:var(--accent);}
+.cmd-note{flex-shrink:0;font-size:11px;color:var(--text-2);}
+.help-step{display:flex;gap:14px;margin-bottom:16px;}
+.help-step:last-child{margin-bottom:0;}
+.help-step-num{width:26px;height:26px;border-radius:50%;background:rgba(57,255,143,.1);border:1px solid rgba(57,255,143,.25);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:12px;flex-shrink:0;}
+.help-step-body{flex:1;min-width:0;}
+.help-step-body h4{margin:0 0 8px;font-size:12.5px;font-weight:700;color:var(--text-0);}
+.help-block{margin-bottom:18px;}
+.help-block:last-child{margin-bottom:0;}
+.help-block h4{margin:0 0 8px;font-size:12.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;}
+.help-block p{margin:0;color:var(--text-1);font-size:12.5px;line-height:1.6;}
+.help-block ul,.help-block ol{margin:0;padding-left:18px;color:var(--text-1);font-size:12.5px;line-height:1.9;}
+.help-block li b{color:var(--text-0);}
+.help-block code{font-family:var(--mono);font-size:11.5px;color:var(--accent);background:var(--bg-2);padding:1px 5px;border-radius:4px;}
+
+@media (max-width: 720px){
+  .app{grid-template-columns:0 1fr;}
+  .sidebar{display:none;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">⚡</div>
+      <div class="brand-name">HexStrike <span class="v">v6.0 · control deck</span></div>
+    </div>
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" placeholder="Search 150+ tools & endpoints…" autocomplete="off">
+      <span class="search-kbd">/</span>
+    </div>
+    <div class="topbar-right">
+      <div class="target-input">
+        <label>Target</label>
+        <input id="globalTarget" type="text" placeholder="10.0.0.1 / example.com" autocomplete="off">
+      </div>
+      <div class="conn-badge" id="connBadge" title="Click to re-check">
+        <span class="dot off pulse" id="connDot"></span>
+        <span id="connText">checking…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar" id="sidebar"></div>
+
+  <div class="main" id="main"></div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div>
+      <h2 id="drawerTitle">/api/tools/nmap</h2>
+      <p id="drawerDoc">description</p>
+    </div>
+    <button class="drawer-close" id="drawerClose">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-foot">
+    <button class="btn primary" id="runBtn">▶ Run</button>
+    <button class="btn ghost sm" id="copyCurlBtn">Copy as curl</button>
+    <span style="flex:1"></span>
+    <span id="runStatus" style="font-size:11px;color:var(--text-2);font-family:var(--mono)"></span>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script id="hexdata" type="application/json">{
+ "System": {
+  "Raw Command": [
+   {
+    "path": "/api/command",
+    "methods": [
+     "POST"
+    ],
+    "function": "generic_command",
+    "doc": "Execute any command provided in the request with enhanced logging",
+    "params": [
+     {
+      "name": "command",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "use_cache",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "File Operations": [
+   {
+    "path": "/api/files/create",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_file",
+    "doc": "Create a new file",
+    "params": [
+     {
+      "name": "filename",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "content",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "binary",
+      "default": false,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/files/modify",
+    "methods": [
+     "POST"
+    ],
+    "function": "modify_file",
+    "doc": "Modify an existing file",
+    "params": [
+     {
+      "name": "filename",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "content",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "append",
+      "default": false,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/files/delete",
+    "methods": [
+     "DELETE"
+    ],
+    "function": "delete_file",
+    "doc": "Delete a file or directory",
+    "params": [
+     {
+      "name": "filename",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/files/list",
+    "methods": [
+     "GET"
+    ],
+    "function": "list_files",
+    "doc": "List files in a directory",
+    "params": [
+     {
+      "name": "directory",
+      "default": ".",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Payloads": [
+   {
+    "path": "/api/payloads/generate",
+    "methods": [
+     "POST"
+    ],
+    "function": "generate_payload",
+    "doc": "Generate large payloads for testing",
+    "params": [
+     {
+      "name": "type",
+      "default": "buffer",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "size",
+      "default": 1024,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "pattern",
+      "default": "A",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "filename",
+      "default": "f\"payload_{int(time.time(",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Cache": [
+   {
+    "path": "/api/cache/stats",
+    "methods": [
+     "GET"
+    ],
+    "function": "cache_stats",
+    "doc": "Get cache statistics",
+    "params": []
+   },
+   {
+    "path": "/api/cache/clear",
+    "methods": [
+     "POST"
+    ],
+    "function": "clear_cache",
+    "doc": "Clear the cache",
+    "params": []
+   }
+  ],
+  "Telemetry": [
+   {
+    "path": "/api/telemetry",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_telemetry",
+    "doc": "Get system telemetry",
+    "params": []
+   }
+  ],
+  "Python Runner": [
+   {
+    "path": "/api/python/install",
+    "methods": [
+     "POST"
+    ],
+    "function": "install_python_package",
+    "doc": "Install a Python package in a virtual environment",
+    "params": [
+     {
+      "name": "package",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "env_name",
+      "default": "default",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/python/execute",
+    "methods": [
+     "POST"
+    ],
+    "function": "execute_python_script",
+    "doc": "Execute a Python script in a virtual environment",
+    "params": [
+     {
+      "name": "script",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "env_name",
+      "default": "default",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "filename",
+      "default": "f\"script_{int(time.time(",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Error Handling": [
+   {
+    "path": "/api/error-handling/statistics",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_error_statistics",
+    "doc": "Get error handling statistics",
+    "params": []
+   },
+   {
+    "path": "/api/error-handling/test-recovery",
+    "methods": [
+     "POST"
+    ],
+    "function": "test_error_recovery",
+    "doc": "Test error recovery system with simulated failures",
+    "params": [
+     {
+      "name": "tool_name",
+      "default": "nmap",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "error_type",
+      "default": "timeout",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target",
+      "default": "example.com",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "parameters",
+      "default": {},
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/error-handling/fallback-chains",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_fallback_chains",
+    "doc": "Get available fallback tool chains",
+    "params": [
+     {
+      "name": "operation",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/error-handling/execute-with-recovery",
+    "methods": [
+     "POST"
+    ],
+    "function": "execute_with_recovery_endpoint",
+    "doc": "Execute a command with intelligent error handling and recovery",
+    "params": [
+     {
+      "name": "tool_name",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "command",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "parameters",
+      "default": {},
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "max_attempts",
+      "default": 3,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "use_cache",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/error-handling/classify-error",
+    "methods": [
+     "POST"
+    ],
+    "function": "classify_error_endpoint",
+    "doc": "Classify an error message",
+    "params": [
+     {
+      "name": "error_message",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/error-handling/parameter-adjustments",
+    "methods": [
+     "POST"
+    ],
+    "function": "get_parameter_adjustments",
+    "doc": "Get parameter adjustments for a tool and error type",
+    "params": [
+     {
+      "name": "tool_name",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "error_type",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "original_params",
+      "default": {},
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/error-handling/alternative-tools",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_alternative_tools",
+    "doc": "Get alternative tools for a given tool",
+    "params": [
+     {
+      "name": "tool_name",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ]
+ },
+ "Process Manager": {
+  "Process Control": [
+   {
+    "path": "/api/processes/list",
+    "methods": [
+     "GET"
+    ],
+    "function": "list_processes",
+    "doc": "List all active processes",
+    "params": []
+   },
+   {
+    "path": "/api/processes/status/<int:pid>",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_process_status",
+    "doc": "Get status of a specific process",
+    "params": [
+     {
+      "name": "pid",
+      "default": null,
+      "required": true,
+      "inpath": true
+     }
+    ]
+   },
+   {
+    "path": "/api/processes/terminate/<int:pid>",
+    "methods": [
+     "POST"
+    ],
+    "function": "terminate_process",
+    "doc": "Terminate a specific process",
+    "params": [
+     {
+      "name": "pid",
+      "default": null,
+      "required": true,
+      "inpath": true
+     }
+    ]
+   },
+   {
+    "path": "/api/processes/pause/<int:pid>",
+    "methods": [
+     "POST"
+    ],
+    "function": "pause_process",
+    "doc": "Pause a specific process",
+    "params": [
+     {
+      "name": "pid",
+      "default": null,
+      "required": true,
+      "inpath": true
+     }
+    ]
+   },
+   {
+    "path": "/api/processes/resume/<int:pid>",
+    "methods": [
+     "POST"
+    ],
+    "function": "resume_process",
+    "doc": "Resume a paused process",
+    "params": [
+     {
+      "name": "pid",
+      "default": null,
+      "required": true,
+      "inpath": true
+     }
+    ]
+   },
+   {
+    "path": "/api/processes/dashboard",
+    "methods": [
+     "GET"
+    ],
+    "function": "process_dashboard",
+    "doc": "Get enhanced process dashboard with visual status using ModernVisualEngine",
+    "params": []
+   },
+   {
+    "path": "/api/process/execute-async",
+    "methods": [
+     "POST"
+    ],
+    "function": "execute_command_async",
+    "doc": "Execute command asynchronously using enhanced process management",
+    "params": [
+     {
+      "name": "command",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "context",
+      "default": {},
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/process/get-task-result/<task_id>",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_async_task_result",
+    "doc": "Get result of asynchronous task",
+    "params": [
+     {
+      "name": "task_id",
+      "default": null,
+      "required": true,
+      "inpath": true
+     }
+    ]
+   },
+   {
+    "path": "/api/process/pool-stats",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_process_pool_stats",
+    "doc": "Get process pool statistics and performance metrics",
+    "params": []
+   },
+   {
+    "path": "/api/process/cache-stats",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_cache_stats",
+    "doc": "Get advanced cache statistics",
+    "params": []
+   },
+   {
+    "path": "/api/process/clear-cache",
+    "methods": [
+     "POST"
+    ],
+    "function": "clear_process_cache",
+    "doc": "Clear the advanced cache",
+    "params": []
+   },
+   {
+    "path": "/api/process/resource-usage",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_resource_usage",
+    "doc": "Get current system resource usage and trends",
+    "params": []
+   },
+   {
+    "path": "/api/process/performance-dashboard",
+    "methods": [
+     "GET"
+    ],
+    "function": "get_performance_dashboard",
+    "doc": "Get performance dashboard data",
+    "params": [
+     {
+      "name": "success_rate",
+      "default": 0,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/process/terminate-gracefully/<int:pid>",
+    "methods": [
+     "POST"
+    ],
+    "function": "terminate_process_gracefully",
+    "doc": "Terminate process with graceful degradation",
+    "params": [
+     {
+      "name": "pid",
+      "default": null,
+      "required": true,
+      "inpath": true
+     },
+     {
+      "name": "timeout",
+      "default": 30,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/process/auto-scaling",
+    "methods": [
+     "POST"
+    ],
+    "function": "configure_auto_scaling",
+    "doc": "Configure auto-scaling settings",
+    "params": [
+     {
+      "name": "enabled",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "thresholds",
+      "default": {},
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/process/scale-pool",
+    "methods": [
+     "POST"
+    ],
+    "function": "manual_scale_pool",
+    "doc": "Manually scale the process pool",
+    "params": [
+     {
+      "name": "action",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "count",
+      "default": 1,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/process/health-check",
+    "methods": [
+     "GET"
+    ],
+    "function": "process_health_check",
+    "doc": "Comprehensive health check of the process management system",
+    "params": []
+   }
+  ]
+ },
+ "Visual Reports": {
+  "Reporting": [
+   {
+    "path": "/api/visual/vulnerability-card",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_vulnerability_card",
+    "doc": "Create a beautiful vulnerability card using ModernVisualEngine",
+    "params": []
+   },
+   {
+    "path": "/api/visual/summary-report",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_summary_report",
+    "doc": "Create a beautiful summary report using ModernVisualEngine",
+    "params": []
+   },
+   {
+    "path": "/api/visual/tool-output",
+    "methods": [
+     "POST"
+    ],
+    "function": "format_tool_output",
+    "doc": "Format tool output using ModernVisualEngine",
+    "params": [
+     {
+      "name": "tool",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "output",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "success",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ]
+ },
+ "AI Intelligence": {
+  "Decision Engine": [
+   {
+    "path": "/api/intelligence/analyze-target",
+    "methods": [
+     "POST"
+    ],
+    "function": "analyze_target",
+    "doc": "Analyze target and create comprehensive profile using Intelligent Decision Engine",
+    "params": [
+     {
+      "name": "target",
+      "default": null,
+      "required": true,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/intelligence/select-tools",
+    "methods": [
+     "POST"
+    ],
+    "function": "select_optimal_tools",
+    "doc": "Select optimal tools based on target profile and objective",
+    "params": [
+     {
+      "name": "target",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "objective",
+      "default": "comprehensive",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/intelligence/optimize-parameters",
+    "methods": [
+     "POST"
+    ],
+    "function": "optimize_tool_parameters",
+    "doc": "Optimize tool parameters based on target profile and context",
+    "params": [
+     {
+      "name": "target",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "tool",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "context",
+      "default": {},
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/intelligence/create-attack-chain",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_attack_chain",
+    "doc": "Create an intelligent attack chain based on target profile",
+    "params": [
+     {
+      "name": "target",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "objective",
+      "default": "comprehensive",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/intelligence/smart-scan",
+    "methods": [
+     "POST"
+    ],
+    "function": "intelligent_smart_scan",
+    "doc": "Execute an intelligent scan using AI-driven tool selection and parameter optimization with parallel execution",
+    "params": [
+     {
+      "name": "target",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "objective",
+      "default": "comprehensive",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "max_tools",
+      "default": 5,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "scan_type",
+      "default": "-sV",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "ports",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "mode",
+      "default": "dir",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/dirb/common.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "severity",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "tags",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/intelligence/technology-detection",
+    "methods": [
+     "POST"
+    ],
+    "function": "detect_technologies",
+    "doc": "Detect technologies and create technology-specific testing recommendations",
+    "params": [
+     {
+      "name": "target",
+      "default": null,
+      "required": true,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Payload AI": [
+   {
+    "path": "/api/ai/generate_payload",
+    "methods": [
+     "POST"
+    ],
+    "function": "ai_generate_payload",
+    "doc": "Generate AI-powered contextual payloads for security testing",
+    "params": [
+     {
+      "name": "attack_type",
+      "default": "xss",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "complexity",
+      "default": "basic",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "technology",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/ai/test_payload",
+    "methods": [
+     "POST"
+    ],
+    "function": "ai_test_payload",
+    "doc": "Test generated payload against target with AI analysis",
+    "params": [
+     {
+      "name": "payload",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "method",
+      "default": "GET",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/ai/advanced-payload-generation",
+    "methods": [
+     "POST"
+    ],
+    "function": "advanced_payload_generation",
+    "doc": "Generate advanced payloads with AI-powered evasion techniques",
+    "params": [
+     {
+      "name": "attack_type",
+      "default": "rce",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_context",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "evasion_level",
+      "default": "standard",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "custom_constraints",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ]
+ },
+ "Bug Bounty": {
+  "Workflows": [
+   {
+    "path": "/api/bugbounty/reconnaissance-workflow",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_reconnaissance_workflow",
+    "doc": "Create comprehensive reconnaissance workflow for bug bounty hunting",
+    "params": [
+     {
+      "name": "domain",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "scope",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "out_of_scope",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "program_type",
+      "default": "web",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/bugbounty/vulnerability-hunting-workflow",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_vulnerability_hunting_workflow",
+    "doc": "Create vulnerability hunting workflow prioritized by impact",
+    "params": [
+     {
+      "name": "domain",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "priority_vulns",
+      "default": "[\"rce\", \"sqli\", \"xss\", \"idor\", \"ssrf\"]",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "bounty_range",
+      "default": "unknown",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/bugbounty/business-logic-workflow",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_business_logic_workflow",
+    "doc": "Create business logic testing workflow",
+    "params": [
+     {
+      "name": "domain",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "program_type",
+      "default": "web",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/bugbounty/osint-workflow",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_osint_workflow",
+    "doc": "Create OSINT gathering workflow",
+    "params": [
+     {
+      "name": "domain",
+      "default": null,
+      "required": true,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/bugbounty/file-upload-testing",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_file_upload_testing",
+    "doc": "Create file upload vulnerability testing workflow",
+    "params": [
+     {
+      "name": "target_url",
+      "default": null,
+      "required": true,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/bugbounty/comprehensive-assessment",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_comprehensive_bugbounty_assessment",
+    "doc": "Create comprehensive bug bounty assessment combining all workflows",
+    "params": [
+     {
+      "name": "domain",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "scope",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "priority_vulns",
+      "default": "[\"rce\", \"sqli\", \"xss\", \"idor\", \"ssrf\"]",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "include_osint",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "include_business_logic",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ]
+ },
+ "Security Tools": {
+  "Essential": [
+   {
+    "path": "/api/tools/nmap",
+    "methods": [
+     "POST"
+    ],
+    "function": "nmap",
+    "doc": "Execute nmap scan with enhanced logging, caching, and intelligent error handling",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "scan_type",
+      "default": "-sCV",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "ports",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "-T4 -Pn",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "use_recovery",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/gobuster",
+    "methods": [
+     "POST"
+    ],
+    "function": "gobuster",
+    "doc": "Execute gobuster with enhanced logging and intelligent error handling",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "mode",
+      "default": "dir",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/dirb/common.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "use_recovery",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/dirb",
+    "methods": [
+     "POST"
+    ],
+    "function": "dirb",
+    "doc": "Execute dirb with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/dirb/common.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/nikto",
+    "methods": [
+     "POST"
+    ],
+    "function": "nikto",
+    "doc": "Execute nikto with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/sqlmap",
+    "methods": [
+     "POST"
+    ],
+    "function": "sqlmap",
+    "doc": "Execute sqlmap with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "data",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/hydra",
+    "methods": [
+     "POST"
+    ],
+    "function": "hydra",
+    "doc": "Execute hydra with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "service",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "username",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "username_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "password",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "password_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/john",
+    "methods": [
+     "POST"
+    ],
+    "function": "john",
+    "doc": "Execute john with enhanced logging",
+    "params": [
+     {
+      "name": "hash_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/rockyou.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "format",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/hashcat",
+    "methods": [
+     "POST"
+    ],
+    "function": "hashcat",
+    "doc": "Execute Hashcat for password cracking with enhanced logging",
+    "params": [
+     {
+      "name": "hash_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "hash_type",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "attack_mode",
+      "default": "0",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/rockyou.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "mask",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Vuln Scanning": [
+   {
+    "path": "/api/tools/nuclei",
+    "methods": [
+     "POST"
+    ],
+    "function": "nuclei",
+    "doc": "Execute Nuclei vulnerability scanner with enhanced logging and intelligent error handling",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "severity",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "tags",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "template",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "use_recovery",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/wpscan",
+    "methods": [
+     "POST"
+    ],
+    "function": "wpscan",
+    "doc": "Execute wpscan with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Cloud/Container": [
+   {
+    "path": "/api/tools/prowler",
+    "methods": [
+     "POST"
+    ],
+    "function": "prowler",
+    "doc": "Execute Prowler for AWS security assessment",
+    "params": [
+     {
+      "name": "provider",
+      "default": "aws",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "profile",
+      "default": "default",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "region",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "checks",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_dir",
+      "default": "/tmp/prowler_output",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/trivy",
+    "methods": [
+     "POST"
+    ],
+    "function": "trivy",
+    "doc": "Execute Trivy for container/filesystem vulnerability scanning",
+    "params": [
+     {
+      "name": "scan_type",
+      "default": "image",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "severity",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/scout-suite",
+    "methods": [
+     "POST"
+    ],
+    "function": "scout_suite",
+    "doc": "Execute Scout Suite for multi-cloud security assessment",
+    "params": [
+     {
+      "name": "provider",
+      "default": "aws",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "profile",
+      "default": "default",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "report_dir",
+      "default": "/tmp/scout-suite",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "services",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "exceptions",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/cloudmapper",
+    "methods": [
+     "POST"
+    ],
+    "function": "cloudmapper",
+    "doc": "Execute CloudMapper for AWS network visualization and security analysis",
+    "params": [
+     {
+      "name": "action",
+      "default": "collect",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "account",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "config",
+      "default": "config.json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/pacu",
+    "methods": [
+     "POST"
+    ],
+    "function": "pacu",
+    "doc": "Execute Pacu for AWS exploitation framework",
+    "params": [
+     {
+      "name": "session_name",
+      "default": "hexstrike_session",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "modules",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "data_services",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "regions",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/kube-hunter",
+    "methods": [
+     "POST"
+    ],
+    "function": "kube_hunter",
+    "doc": "Execute kube-hunter for Kubernetes penetration testing",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "remote",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "cidr",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "interface",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "active",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "report",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/kube-bench",
+    "methods": [
+     "POST"
+    ],
+    "function": "kube_bench",
+    "doc": "Execute kube-bench for CIS Kubernetes benchmark checks",
+    "params": [
+     {
+      "name": "targets",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "version",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "config_dir",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/docker-bench-security",
+    "methods": [
+     "POST"
+    ],
+    "function": "docker_bench_security",
+    "doc": "Execute Docker Bench for Security for Docker security assessment",
+    "params": [
+     {
+      "name": "checks",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "exclude",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_file",
+      "default": "/tmp/docker-bench-results.json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/clair",
+    "methods": [
+     "POST"
+    ],
+    "function": "clair",
+    "doc": "Execute Clair for container vulnerability analysis",
+    "params": [
+     {
+      "name": "image",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "config",
+      "default": "/etc/clair/config.yaml",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/falco",
+    "methods": [
+     "POST"
+    ],
+    "function": "falco",
+    "doc": "Execute Falco for runtime security monitoring",
+    "params": [
+     {
+      "name": "config_file",
+      "default": "/etc/falco/falco.yaml",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "rules_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "duration",
+      "default": 60,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/checkov",
+    "methods": [
+     "POST"
+    ],
+    "function": "checkov",
+    "doc": "Execute Checkov for infrastructure as code security scanning",
+    "params": [
+     {
+      "name": "directory",
+      "default": ".",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "framework",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "check",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "skip_check",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/terrascan",
+    "methods": [
+     "POST"
+    ],
+    "function": "terrascan",
+    "doc": "Execute Terrascan for infrastructure as code security scanning",
+    "params": [
+     {
+      "name": "scan_type",
+      "default": "all",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "iac_dir",
+      "default": ".",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "policy_type",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "severity",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Exploitation": [
+   {
+    "path": "/api/tools/metasploit",
+    "methods": [
+     "POST"
+    ],
+    "function": "metasploit",
+    "doc": "Execute metasploit module with enhanced logging",
+    "params": [
+     {
+      "name": "module",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "options",
+      "default": {},
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/msfvenom",
+    "methods": [
+     "POST"
+    ],
+    "function": "msfvenom",
+    "doc": "Execute MSFVenom to generate payloads with enhanced logging",
+    "params": [
+     {
+      "name": "payload",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "format",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "encoder",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "iterations",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Network": [
+   {
+    "path": "/api/tools/enum4linux",
+    "methods": [
+     "POST"
+    ],
+    "function": "enum4linux",
+    "doc": "Execute enum4linux with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "-a",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/netexec",
+    "methods": [
+     "POST"
+    ],
+    "function": "netexec",
+    "doc": "Execute NetExec (formerly CrackMapExec) with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "protocol",
+      "default": "smb",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "username",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "password",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "hash",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "module",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/rustscan",
+    "methods": [
+     "POST"
+    ],
+    "function": "rustscan",
+    "doc": "Execute Rustscan for ultra-fast port scanning with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "ports",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "ulimit",
+      "default": 5000,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "batch_size",
+      "default": 4500,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "timeout",
+      "default": 1500,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "scripts",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/masscan",
+    "methods": [
+     "POST"
+    ],
+    "function": "masscan",
+    "doc": "Execute Masscan for high-speed Internet-scale port scanning with intelligent rate limiting",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "ports",
+      "default": "1-65535",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "rate",
+      "default": 1000,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "interface",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "router_mac",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "source_ip",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "banners",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/autorecon",
+    "methods": [
+     "POST"
+    ],
+    "function": "autorecon",
+    "doc": "Execute AutoRecon for comprehensive automated reconnaissance",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_dir",
+      "default": "/tmp/autorecon",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "port_scans",
+      "default": "top-100-ports",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "service_scans",
+      "default": "default",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "heartbeat",
+      "default": 60,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "timeout",
+      "default": 300,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/enum4linux-ng",
+    "methods": [
+     "POST"
+    ],
+    "function": "enum4linux_ng",
+    "doc": "Execute Enum4linux-ng for advanced SMB enumeration with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "username",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "password",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "shares",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "users",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "groups",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "policy",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/rpcclient",
+    "methods": [
+     "POST"
+    ],
+    "function": "rpcclient",
+    "doc": "Execute rpcclient for RPC enumeration with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "username",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "password",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "commands",
+      "default": "enumdomusers;enumdomgroups;querydominfo",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/nbtscan",
+    "methods": [
+     "POST"
+    ],
+    "function": "nbtscan",
+    "doc": "Execute nbtscan for NetBIOS name scanning with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "verbose",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "timeout",
+      "default": 2,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/arp-scan",
+    "methods": [
+     "POST"
+    ],
+    "function": "arp_scan",
+    "doc": "Execute arp-scan for network discovery with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "interface",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "local_network",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "timeout",
+      "default": 500,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "retry",
+      "default": 3,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/responder",
+    "methods": [
+     "POST"
+    ],
+    "function": "responder",
+    "doc": "Execute Responder for credential harvesting with enhanced logging",
+    "params": [
+     {
+      "name": "interface",
+      "default": "eth0",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "analyze",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wpad",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "force_wpad_auth",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "fingerprint",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "duration",
+      "default": 300,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Web App": [
+   {
+    "path": "/api/tools/ffuf",
+    "methods": [
+     "POST"
+    ],
+    "function": "ffuf",
+    "doc": "Execute FFuf web fuzzer with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/dirb/common.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "mode",
+      "default": "directory",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "match_codes",
+      "default": "200,204,301,302,307,401,403",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/feroxbuster",
+    "methods": [
+     "POST"
+    ],
+    "function": "feroxbuster",
+    "doc": "Execute Feroxbuster for recursive content discovery with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/dirb/common.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "threads",
+      "default": 10,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/dotdotpwn",
+    "methods": [
+     "POST"
+    ],
+    "function": "dotdotpwn",
+    "doc": "Execute DotDotPwn for directory traversal testing with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "module",
+      "default": "http",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/xsser",
+    "methods": [
+     "POST"
+    ],
+    "function": "xsser",
+    "doc": "Execute XSSer for XSS vulnerability testing with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "params",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/wfuzz",
+    "methods": [
+     "POST"
+    ],
+    "function": "wfuzz",
+    "doc": "Execute Wfuzz for web application fuzzing with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/dirb/common.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/dirsearch",
+    "methods": [
+     "POST"
+    ],
+    "function": "dirsearch",
+    "doc": "Execute Dirsearch for advanced directory and file discovery with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "extensions",
+      "default": "php,html,js,txt,xml,json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/dirsearch/common.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "threads",
+      "default": 30,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "recursive",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/katana",
+    "methods": [
+     "POST"
+    ],
+    "function": "katana",
+    "doc": "Execute Katana for next-generation crawling and spidering with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "depth",
+      "default": 3,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "js_crawl",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "form_extraction",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "json",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/gau",
+    "methods": [
+     "POST"
+    ],
+    "function": "gau",
+    "doc": "Execute Gau (Get All URLs) for URL discovery from multiple sources with enhanced logging",
+    "params": [
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "providers",
+      "default": "wayback,commoncrawl,otx,urlscan",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "include_subs",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "blacklist",
+      "default": "png,jpg,gif,jpeg,swf,woff,svg,pdf,css,ico",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/waybackurls",
+    "methods": [
+     "POST"
+    ],
+    "function": "waybackurls",
+    "doc": "Execute Waybackurls for historical URL discovery with enhanced logging",
+    "params": [
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "get_versions",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "no_subs",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/arjun",
+    "methods": [
+     "POST"
+    ],
+    "function": "arjun",
+    "doc": "Execute Arjun for HTTP parameter discovery with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "method",
+      "default": "GET",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "delay",
+      "default": 0,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "threads",
+      "default": 25,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "stable",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/paramspider",
+    "methods": [
+     "POST"
+    ],
+    "function": "paramspider",
+    "doc": "Execute ParamSpider for parameter mining from web archives with enhanced logging",
+    "params": [
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "level",
+      "default": 2,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "exclude",
+      "default": "png,jpg,gif,jpeg,swf,woff,svg,pdf,css,ico",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/x8",
+    "methods": [
+     "POST"
+    ],
+    "function": "x8",
+    "doc": "Execute x8 for hidden parameter discovery with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/x8/params.txt",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "method",
+      "default": "GET",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "body",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "headers",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/jaeles",
+    "methods": [
+     "POST"
+    ],
+    "function": "jaeles",
+    "doc": "Execute Jaeles for advanced vulnerability scanning with custom signatures",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "signatures",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "config",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "threads",
+      "default": 20,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "timeout",
+      "default": 20,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/dalfox",
+    "methods": [
+     "POST"
+    ],
+    "function": "dalfox",
+    "doc": "Execute Dalfox for advanced XSS vulnerability scanning with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "pipe_mode",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "blind",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "mining_dom",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "mining_dict",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "custom_payload",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/httpx",
+    "methods": [
+     "POST"
+    ],
+    "function": "httpx",
+    "doc": "Execute httpx for fast HTTP probing and technology detection",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "probe",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "tech_detect",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "status_code",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "content_length",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "title",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "web_server",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "threads",
+      "default": 50,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/wafw00f",
+    "methods": [
+     "POST"
+    ],
+    "function": "wafw00f",
+    "doc": "Execute wafw00f to identify and fingerprint WAF products with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/hakrawler",
+    "methods": [
+     "POST"
+    ],
+    "function": "hakrawler",
+    "doc": "Execute Hakrawler for web endpoint discovery with enhanced logging",
+    "params": [
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "depth",
+      "default": 2,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "forms",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "robots",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "sitemap",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wayback",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "OSINT": [
+   {
+    "path": "/api/tools/amass",
+    "methods": [
+     "POST"
+    ],
+    "function": "amass",
+    "doc": "Execute Amass for subdomain enumeration with enhanced logging",
+    "params": [
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "mode",
+      "default": "enum",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/subfinder",
+    "methods": [
+     "POST"
+    ],
+    "function": "subfinder",
+    "doc": "Execute Subfinder for passive subdomain enumeration with enhanced logging",
+    "params": [
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "silent",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "all_sources",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/fierce",
+    "methods": [
+     "POST"
+    ],
+    "function": "fierce",
+    "doc": "Execute fierce for DNS reconnaissance with enhanced logging",
+    "params": [
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "dns_server",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/dnsenum",
+    "methods": [
+     "POST"
+    ],
+    "function": "dnsenum",
+    "doc": "Execute dnsenum for DNS enumeration with enhanced logging",
+    "params": [
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "dns_server",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Additional": [
+   {
+    "path": "/api/tools/smbmap",
+    "methods": [
+     "POST"
+    ],
+    "function": "smbmap",
+    "doc": "Execute SMBMap for SMB share enumeration with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "username",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "password",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "domain",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/nmap-advanced",
+    "methods": [
+     "POST"
+    ],
+    "function": "nmap_advanced",
+    "doc": "Execute advanced Nmap scans with custom NSE scripts and optimized timing",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "scan_type",
+      "default": "-sS",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "ports",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "timing",
+      "default": "T4",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "nse_scripts",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "os_detection",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "version_detection",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "aggressive",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "stealth",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/anew",
+    "methods": [
+     "POST"
+    ],
+    "function": "anew",
+    "doc": "Execute anew for appending new lines to files (useful for data processing)",
+    "params": [
+     {
+      "name": "input_data",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/qsreplace",
+    "methods": [
+     "POST"
+    ],
+    "function": "qsreplace",
+    "doc": "Execute qsreplace for query string parameter replacement",
+    "params": [
+     {
+      "name": "urls",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "replacement",
+      "default": "FUZZ",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/uro",
+    "methods": [
+     "POST"
+    ],
+    "function": "uro",
+    "doc": "Execute uro for filtering out similar URLs",
+    "params": [
+     {
+      "name": "inputs",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "name",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "urls",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "whitelist",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "blacklist",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/http-framework",
+    "methods": [
+     "POST"
+    ],
+    "function": "http_framework_endpoint",
+    "doc": "Enhanced HTTP testing framework (Burp Suite alternative)",
+    "params": [
+     {
+      "name": "action",
+      "default": "request",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "method",
+      "default": "GET",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "data",
+      "default": {},
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "headers",
+      "default": {},
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "cookies",
+      "default": {},
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "max_depth",
+      "default": 3,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "max_pages",
+      "default": 100,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "rules",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "host",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "include_subdomains",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "request",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "location",
+      "default": "query",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "params",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "payloads",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "base_data",
+      "default": {},
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "max_requests",
+      "default": 100,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/browser-agent",
+    "methods": [
+     "POST"
+    ],
+    "function": "browser_agent_endpoint",
+    "doc": "AI-powered browser agent for web application inspection",
+    "params": [
+     {
+      "name": "action",
+      "default": "navigate",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "headless",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wait_time",
+      "default": 5,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "proxy_port",
+      "default": null,
+      "required": true,
+      "inpath": false
+     },
+     {
+      "name": "active_tests",
+      "default": false,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/burpsuite-alternative",
+    "methods": [
+     "POST"
+    ],
+    "function": "burpsuite_alternative",
+    "doc": "Comprehensive Burp Suite alternative combining HTTP framework and browser agent",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "scan_type",
+      "default": "comprehensive",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "headless",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "max_depth",
+      "default": 3,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "max_pages",
+      "default": 50,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/zap",
+    "methods": [
+     "POST"
+    ],
+    "function": "zap",
+    "doc": "Execute OWASP ZAP with enhanced logging",
+    "params": [
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "scan_type",
+      "default": "baseline",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "api_key",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "daemon",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "port",
+      "default": "8090",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "host",
+      "default": "0.0.0.0",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "format",
+      "default": "xml",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/api_fuzzer",
+    "methods": [
+     "POST"
+    ],
+    "function": "api_fuzzer",
+    "doc": "Advanced API endpoint fuzzing with intelligent parameter discovery",
+    "params": [
+     {
+      "name": "base_url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "endpoints",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "methods",
+      "default": "[\"GET\", \"POST\", \"PUT\", \"DELETE\"]",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "wordlist",
+      "default": "/usr/share/wordlists/api/api-endpoints.txt",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/graphql_scanner",
+    "methods": [
+     "POST"
+    ],
+    "function": "graphql_scanner",
+    "doc": "Advanced GraphQL security scanning and introspection",
+    "params": [
+     {
+      "name": "endpoint",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "introspection",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "query_depth",
+      "default": 10,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "test_mutations",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/jwt_analyzer",
+    "methods": [
+     "POST"
+    ],
+    "function": "jwt_analyzer",
+    "doc": "Advanced JWT token analysis and vulnerability testing",
+    "params": [
+     {
+      "name": "jwt_token",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/api_schema_analyzer",
+    "methods": [
+     "POST"
+    ],
+    "function": "api_schema_analyzer",
+    "doc": "Analyze API schemas and identify potential security issues",
+    "params": [
+     {
+      "name": "schema_url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "schema_type",
+      "default": "openapi",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "paths",
+      "default": {},
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Forensics": [
+   {
+    "path": "/api/tools/volatility",
+    "methods": [
+     "POST"
+    ],
+    "function": "volatility",
+    "doc": "Execute Volatility for memory forensics with enhanced logging",
+    "params": [
+     {
+      "name": "memory_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "plugin",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "profile",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/xxd",
+    "methods": [
+     "POST"
+    ],
+    "function": "xxd",
+    "doc": "Create a hex dump of a file using xxd with enhanced logging",
+    "params": [
+     {
+      "name": "file_path",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "offset",
+      "default": "0",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "length",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/strings",
+    "methods": [
+     "POST"
+    ],
+    "function": "strings",
+    "doc": "Extract strings from a binary file with enhanced logging",
+    "params": [
+     {
+      "name": "file_path",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "min_len",
+      "default": 4,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/volatility3",
+    "methods": [
+     "POST"
+    ],
+    "function": "volatility3",
+    "doc": "Execute Volatility3 for advanced memory forensics with enhanced logging",
+    "params": [
+     {
+      "name": "memory_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "plugin",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/foremost",
+    "methods": [
+     "POST"
+    ],
+    "function": "foremost",
+    "doc": "Execute Foremost for file carving with enhanced logging",
+    "params": [
+     {
+      "name": "input_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_dir",
+      "default": "/tmp/foremost_output",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "file_types",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/steghide",
+    "methods": [
+     "POST"
+    ],
+    "function": "steghide",
+    "doc": "Execute Steghide for steganography analysis with enhanced logging",
+    "params": [
+     {
+      "name": "action",
+      "default": "extract",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "cover_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "embed_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "passphrase",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/exiftool",
+    "methods": [
+     "POST"
+    ],
+    "function": "exiftool",
+    "doc": "Execute ExifTool for metadata extraction with enhanced logging",
+    "params": [
+     {
+      "name": "file_path",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "tags",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/hashpump",
+    "methods": [
+     "POST"
+    ],
+    "function": "hashpump",
+    "doc": "Execute HashPump for hash length extension attacks with enhanced logging",
+    "params": [
+     {
+      "name": "signature",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "data",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "key_length",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "append_data",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ],
+  "Binary/RE": [
+   {
+    "path": "/api/tools/gdb",
+    "methods": [
+     "POST"
+    ],
+    "function": "gdb",
+    "doc": "Execute GDB for binary analysis and debugging with enhanced logging",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "commands",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "script_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/radare2",
+    "methods": [
+     "POST"
+    ],
+    "function": "radare2",
+    "doc": "Execute Radare2 for binary analysis and reverse engineering with enhanced logging",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "commands",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/binwalk",
+    "methods": [
+     "POST"
+    ],
+    "function": "binwalk",
+    "doc": "Execute Binwalk for firmware and file analysis with enhanced logging",
+    "params": [
+     {
+      "name": "file_path",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "extract",
+      "default": false,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/ropgadget",
+    "methods": [
+     "POST"
+    ],
+    "function": "ropgadget",
+    "doc": "Search for ROP gadgets in a binary using ROPgadget with enhanced logging",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "gadget_type",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/checksec",
+    "methods": [
+     "POST"
+    ],
+    "function": "checksec",
+    "doc": "Check security features of a binary with enhanced logging",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/objdump",
+    "methods": [
+     "POST"
+    ],
+    "function": "objdump",
+    "doc": "Analyze a binary using objdump with enhanced logging",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "disassemble",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/ghidra",
+    "methods": [
+     "POST"
+    ],
+    "function": "ghidra",
+    "doc": "Execute Ghidra for advanced binary analysis and reverse engineering",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "project_name",
+      "default": "hexstrike_analysis",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "script_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "analysis_timeout",
+      "default": 300,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "output_format",
+      "default": "xml",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/pwntools",
+    "methods": [
+     "POST"
+    ],
+    "function": "pwntools",
+    "doc": "Execute Pwntools for exploit development and automation",
+    "params": [
+     {
+      "name": "script_content",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_host",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_port",
+      "default": 0,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "exploit_type",
+      "default": "local",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/one-gadget",
+    "methods": [
+     "POST"
+    ],
+    "function": "one_gadget",
+    "doc": "Execute one_gadget to find one-shot RCE gadgets in libc",
+    "params": [
+     {
+      "name": "libc_path",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "level",
+      "default": 1,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/libc-database",
+    "methods": [
+     "POST"
+    ],
+    "function": "libc_database",
+    "doc": "Execute libc-database for libc identification and offset lookup",
+    "params": [
+     {
+      "name": "action",
+      "default": "find",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "symbols",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "libc_id",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/gdb-peda",
+    "methods": [
+     "POST"
+    ],
+    "function": "gdb_peda",
+    "doc": "Execute GDB with PEDA for enhanced debugging and exploitation",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "commands",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "attach_pid",
+      "default": 0,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "core_file",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/angr",
+    "methods": [
+     "POST"
+    ],
+    "function": "angr",
+    "doc": "Execute angr for symbolic execution and binary analysis",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "script_content",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "find_address",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "avoid_addresses",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "analysis_type",
+      "default": "symbolic",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/ropper",
+    "methods": [
+     "POST"
+    ],
+    "function": "ropper",
+    "doc": "Execute ropper for advanced ROP/JOP gadget searching",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "gadget_type",
+      "default": "rop",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "quality",
+      "default": 1,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "arch",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "search_string",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/tools/pwninit",
+    "methods": [
+     "POST"
+    ],
+    "function": "pwninit",
+    "doc": "Execute pwninit for CTF binary exploitation setup",
+    "params": [
+     {
+      "name": "binary",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "libc",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "ld",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "template_type",
+      "default": "python",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_args",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ]
+ },
+ "Vulnerability Intel": {
+  "CVE & Exploits": [
+   {
+    "path": "/api/vuln-intel/cve-monitor",
+    "methods": [
+     "POST"
+    ],
+    "function": "cve_monitor",
+    "doc": "Monitor CVE databases for new vulnerabilities with AI analysis",
+    "params": [
+     {
+      "name": "hours",
+      "default": 24,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "severity_filter",
+      "default": "HIGH,CRITICAL",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "keywords",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/vuln-intel/exploit-generate",
+    "methods": [
+     "POST"
+    ],
+    "function": "exploit_generate",
+    "doc": "Generate exploits from vulnerability data using AI",
+    "params": [
+     {
+      "name": "cve_id",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_os",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_arch",
+      "default": "x64",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "exploit_type",
+      "default": "poc",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "evasion_level",
+      "default": "none",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_ip",
+      "default": "192.168.1.100",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_port",
+      "default": 80,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target_description",
+      "default": "f\"Target for {cve_id}\"",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/vuln-intel/attack-chains",
+    "methods": [
+     "POST"
+    ],
+    "function": "discover_attack_chains",
+    "doc": "Discover multi-stage attack possibilities",
+    "params": [
+     {
+      "name": "target_software",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "attack_depth",
+      "default": 3,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "include_zero_days",
+      "default": false,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/vuln-intel/threat-feeds",
+    "methods": [
+     "POST"
+    ],
+    "function": "threat_intelligence_feeds",
+    "doc": "Aggregate and correlate threat intelligence from multiple sources",
+    "params": [
+     {
+      "name": "indicators",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "timeframe",
+      "default": "30d",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "sources",
+      "default": "all",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/vuln-intel/zero-day-research",
+    "methods": [
+     "POST"
+    ],
+    "function": "zero_day_research",
+    "doc": "Automated zero-day vulnerability research using AI analysis",
+    "params": [
+     {
+      "name": "target_software",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "analysis_depth",
+      "default": "standard",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "source_code_url",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ]
+ },
+ "CTF Toolkit": {
+  "Challenges": [
+   {
+    "path": "/api/ctf/create-challenge-workflow",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_ctf_challenge_workflow",
+    "doc": "Create specialized workflow for CTF challenge",
+    "params": [
+     {
+      "name": "name",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "category",
+      "default": "misc",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "difficulty",
+      "default": "unknown",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "points",
+      "default": 100,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "description",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/ctf/auto-solve-challenge",
+    "methods": [
+     "POST"
+    ],
+    "function": "auto_solve_ctf_challenge",
+    "doc": "Attempt to automatically solve a CTF challenge",
+    "params": [
+     {
+      "name": "name",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "category",
+      "default": "misc",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "difficulty",
+      "default": "unknown",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "points",
+      "default": 100,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "description",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/ctf/team-strategy",
+    "methods": [
+     "POST"
+    ],
+    "function": "create_ctf_team_strategy",
+    "doc": "Create optimal team strategy for CTF competition",
+    "params": [
+     {
+      "name": "challenges",
+      "default": [],
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "team_skills",
+      "default": {},
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "name",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "category",
+      "default": "misc",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "difficulty",
+      "default": "unknown",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "points",
+      "default": 100,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "description",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "target",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/ctf/suggest-tools",
+    "methods": [
+     "POST"
+    ],
+    "function": "suggest_ctf_tools",
+    "doc": "Suggest optimal tools for CTF challenge based on description and category",
+    "params": [
+     {
+      "name": "description",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "category",
+      "default": "misc",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/ctf/cryptography-solver",
+    "methods": [
+     "POST"
+    ],
+    "function": "ctf_cryptography_solver",
+    "doc": "Advanced cryptography challenge solver with multiple attack methods",
+    "params": [
+     {
+      "name": "cipher_text",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "cipher_type",
+      "default": "unknown",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "key_hint",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "known_plaintext",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "additional_info",
+      "default": "",
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/ctf/forensics-analyzer",
+    "methods": [
+     "POST"
+    ],
+    "function": "ctf_forensics_analyzer",
+    "doc": "Advanced forensics challenge analyzer with multiple investigation techniques",
+    "params": [
+     {
+      "name": "file_path",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "analysis_type",
+      "default": "comprehensive",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "extract_hidden",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "check_steganography",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   },
+   {
+    "path": "/api/ctf/binary-analyzer",
+    "methods": [
+     "POST"
+    ],
+    "function": "ctf_binary_analyzer",
+    "doc": "Advanced binary analysis for reverse engineering and pwn challenges",
+    "params": [
+     {
+      "name": "binary_path",
+      "default": "",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "analysis_depth",
+      "default": "comprehensive",
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "check_protections",
+      "default": true,
+      "required": false,
+      "inpath": false
+     },
+     {
+      "name": "find_gadgets",
+      "default": true,
+      "required": false,
+      "inpath": false
+     }
+    ]
+   }
+  ]
+ }
+}</script>
+<script>
+(function(){
+"use strict";
+
+const HEXDATA = JSON.parse(document.getElementById('hexdata').textContent);
+const HEALTHCATS = {
+ "essential": [
+  "nmap",
+  "gobuster",
+  "dirb",
+  "nikto",
+  "sqlmap",
+  "hydra",
+  "john",
+  "hashcat"
+ ],
+ "network": [
+  "rustscan",
+  "masscan",
+  "autorecon",
+  "nbtscan",
+  "arp-scan",
+  "responder",
+  "nxc",
+  "enum4linux-ng",
+  "rpcclient",
+  "enum4linux"
+ ],
+ "web_security": [
+  "ffuf",
+  "feroxbuster",
+  "dirsearch",
+  "dotdotpwn",
+  "xsser",
+  "wfuzz",
+  "gau",
+  "waybackurls",
+  "arjun",
+  "paramspider",
+  "x8",
+  "jaeles",
+  "dalfox",
+  "httpx",
+  "wafw00f",
+  "burpsuite",
+  "zaproxy",
+  "katana",
+  "hakrawler"
+ ],
+ "vuln_scanning": [
+  "nuclei",
+  "wpscan",
+  "graphql-scanner",
+  "jwt-analyzer"
+ ],
+ "password": [
+  "medusa",
+  "patator",
+  "hash-identifier",
+  "ophcrack",
+  "hashcat-utils"
+ ],
+ "binary": [
+  "gdb",
+  "radare2",
+  "binwalk",
+  "ropgadget",
+  "checksec",
+  "objdump",
+  "ghidra",
+  "pwntools",
+  "one-gadget",
+  "ropper",
+  "angr",
+  "libc-database",
+  "pwninit"
+ ],
+ "forensics": [
+  "volatility3",
+  "vol",
+  "steghide",
+  "hashpump",
+  "foremost",
+  "exiftool",
+  "strings",
+  "xxd",
+  "file",
+  "photorec",
+  "testdisk",
+  "scalpel",
+  "bulk-extractor",
+  "stegsolve",
+  "zsteg",
+  "outguess"
+ ],
+ "cloud": [
+  "prowler",
+  "scout-suite",
+  "trivy",
+  "kube-hunter",
+  "kube-bench",
+  "docker-bench-security",
+  "checkov",
+  "terrascan",
+  "falco",
+  "clair"
+ ],
+ "osint": [
+  "amass",
+  "subfinder",
+  "fierce",
+  "dnsenum",
+  "theharvester",
+  "sherlock",
+  "social-analyzer",
+  "recon-ng",
+  "maltego",
+  "spiderfoot",
+  "shodan-cli",
+  "censys-cli",
+  "have-i-been-pwned"
+ ],
+ "exploitation": [
+  "metasploit",
+  "exploit-db",
+  "searchsploit"
+ ],
+ "api": [
+  "api-schema-analyzer",
+  "postman",
+  "insomnia",
+  "curl",
+  "httpie",
+  "anew",
+  "qsreplace",
+  "uro"
+ ],
+ "wireless": [
+  "kismet",
+  "wireshark",
+  "tshark",
+  "tcpdump"
+ ],
+ "additional": [
+  "smbmap",
+  "volatility",
+  "sleuthkit",
+  "autopsy",
+  "evil-winrm",
+  "paramspider",
+  "airmon-ng",
+  "airodump-ng",
+  "aireplay-ng",
+  "aircrack-ng",
+  "msfvenom",
+  "msfconsole",
+  "graphql-scanner",
+  "jwt-analyzer"
+ ]
+};
+
+const GROUP_META = {
+  "Overview":        {icon:"◆", order:0},
+  "Security Tools":  {icon:"⚔", order:1},
+  "AI Intelligence": {icon:"◈", order:2},
+  "Vulnerability Intel": {icon:"◉", order:3},
+  "Bug Bounty":      {icon:"◎", order:4},
+  "CTF Toolkit":     {icon:"▲", order:5},
+  "Process Manager": {icon:"▣", order:6},
+  "Visual Reports":  {icon:"▦", order:7},
+  "System":          {icon:"⚙", order:8},
+  "Activity":        {icon:"≡", order:9},
+  "Help":            {icon:"?", order:10},
+};
+const SUB_ICON = {
+  "Essential":"★","Network":"◍","Web App":"◐","Vuln Scanning":"⚑","Password/Crypto":"⚿",
+  "Binary/RE":"▧","Forensics":"◒","Cloud/Container":"☁","OSINT":"◫","Exploitation":"✺",
+  "Wireless":"≋","Additional":"…"
+};
+const CAT_LABEL = {
+  essential:"Essential", network:"Network", web_security:"Web App", vuln_scanning:"Vuln Scanning",
+  password:"Password/Crypto", binary:"Binary/RE", forensics:"Forensics", cloud:"Cloud/Container",
+  osint:"OSINT", exploitation:"Exploitation", api:"API", wireless:"Wireless", additional:"Additional"
+};
+
+// ---- flatten for search ----
+const ALL = [];
+for (const group in HEXDATA){
+  for (const sub in HEXDATA[group]){
+    for (const r of HEXDATA[group][sub]){
+      ALL.push(Object.assign({group, sub}, r));
+    }
+  }
+}
+
+// ---- state ----
+const state = {
+  view: "Overview",
+  sub: null,
+  search: "",
+  base: location.origin,
+  history: JSON.parse(localStorage.getItem('hx_history')||'[]'),
+  procTimer: null,
+  healthTimer: null,
+};
+
+const $ = sel => document.querySelector(sel);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if(cls) e.className = cls; if(html!==undefined) e.innerHTML = html; return e; };
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg, isErr){
+  const t = el('div','toast'+(isErr?' err':''), esc(msg));
+  $('#toastStack').appendChild(t);
+  setTimeout(()=>{ t.style.transition='.25s'; t.style.opacity='0'; t.style.transform='translateX(20px)'; setTimeout(()=>t.remove(),250); }, 3200);
+}
+
+// ---------------- sidebar ----------------
+function buildSidebar(){
+  const sb = $('#sidebar');
+  sb.innerHTML = '';
+
+  sb.appendChild(navItem('Overview', null, GROUP_META.Overview.icon, null));
+
+  const secLabel = el('div','nav-label','Assessment');
+  sb.appendChild(secLabel);
+  ['AI Intelligence','Vulnerability Intel','Bug Bounty','CTF Toolkit'].forEach(g=>{
+    const count = countGroup(g);
+    sb.appendChild(navItem(g, null, GROUP_META[g].icon, count));
+  });
+
+  sb.appendChild(el('div','nav-label','Arsenal'));
+  const toolsCount = countGroup('Security Tools');
+  const toolsItem = navItem('Security Tools', null, GROUP_META['Security Tools'].icon, toolsCount, true);
+  sb.appendChild(toolsItem);
+  const subwrap = el('div','subnav');
+  subwrap.id = 'toolsSubnav';
+  Object.keys(HEXDATA['Security Tools']||{}).forEach(sub=>{
+    const c = HEXDATA['Security Tools'][sub].length;
+    subwrap.appendChild(navItem('Security Tools', sub, SUB_ICON[sub]||'•', c));
+  });
+  sb.appendChild(subwrap);
+
+  sb.appendChild(el('div','nav-label','Operations'));
+  ['Process Manager','Visual Reports','System'].forEach(g=>{
+    sb.appendChild(navItem(g, null, GROUP_META[g].icon, countGroup(g)));
+  });
+
+  sb.appendChild(el('div','nav-sep'));
+  sb.appendChild(navItem('Activity', null, GROUP_META.Activity.icon, state.history.length));
+  sb.appendChild(navItem('Help', null, GROUP_META.Help.icon, null));
+}
+
+function countGroup(g){
+  let n = 0;
+  for (const sub in (HEXDATA[g]||{})) n += HEXDATA[g][sub].length;
+  return n;
+}
+
+function navItem(group, sub, icon, count, expandToggle){
+  const item = el('div','nav-item');
+  item.setAttribute('role','button');
+  item.setAttribute('tabindex','0');
+  item.setAttribute('aria-label', sub||group);
+  item.innerHTML = `<span class="ic">${icon}</span><span>${sub||group}</span>` + (count!=null?`<span class="count">${count}</span>`:'');
+  item.dataset.group = group;
+  if (sub) item.dataset.sub = sub;
+  const activate = ()=>{
+    if (expandToggle){
+      const sn = $('#toolsSubnav');
+      sn.classList.toggle('open');
+    }
+    setView(group, sub||null);
+  };
+  item.addEventListener('click', activate);
+  item.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); activate(); } });
+  return item;
+}
+
+function refreshSidebarActive(){
+  document.querySelectorAll('.nav-item').forEach(it=>{
+    const match = it.dataset.group === state.view && (it.dataset.sub||null) === state.sub;
+    it.classList.toggle('active', match && !it.id);
+  });
+  if (state.view === 'Security Tools') $('#toolsSubnav').classList.add('open');
+}
+
+// ---------------- routing ----------------
+function setView(group, sub){
+  state.view = group;
+  state.sub = sub || null;
+  state.search = '';
+  $('#searchInput').value = '';
+  refreshSidebarActive();
+  render();
+  clearInterval(state.procTimer); clearInterval(state.healthTimer);
+  if (group === 'Process Manager') startProcPolling();
+  if (group === 'Overview') startHealthPolling();
+}
+
+function render(){
+  const main = $('#main');
+  main.innerHTML = '';
+  const view = el('div','view active');
+  main.appendChild(view);
+
+  if (state.search.trim()){
+    renderSearchResults(view);
+  } else if (state.view === 'Overview'){
+    renderOverview(view);
+  } else if (state.view === 'Process Manager'){
+    renderProcessManager(view);
+  } else if (state.view === 'Activity'){
+    renderActivity(view);
+  } else if (state.view === 'Help'){
+    renderHelp(view);
+  } else {
+    renderToolGrid(view, state.view, state.sub);
+  }
+}
+
+// ---------------- overview / health ----------------
+async function fetchHealth(){
+  try{
+    const res = await fetch(state.base + '/health');
+    const data = await res.json();
+    setConn(true);
+    return data;
+  }catch(e){
+    setConn(false);
+    return null;
+  }
+}
+
+function setConn(ok){
+  $('#connDot').className = 'dot ' + (ok?'on':'off');
+  $('#connText').textContent = ok ? ('online · ' + state.base.replace(/^https?:\/\//,'')) : 'offline — server not reachable';
+}
+
+async function renderOverview(view){
+  view.appendChild(pageHead('Overview', 'Live status of the HexStrike AI engine — ' + ALL.length + ' endpoints wired up across ' + Object.keys(HEXDATA).length + ' categories.'));
+
+  const statGrid = el('div','stat-grid');
+  statGrid.id = 'ovStats';
+  statGrid.innerHTML = skeletonStats();
+  view.appendChild(statGrid);
+
+  const panel = el('div','panel');
+  panel.innerHTML = `<div class="panel-head"><h3>◍ Tool availability by category</h3></div><div class="panel-body" id="catBars"><div class="empty-state">Connecting…</div></div>`;
+  view.appendChild(panel);
+
+  const panel2 = el('div','panel');
+  panel2.innerHTML = `<div class="panel-head"><h3>⚔ Detected on this system</h3></div><div class="panel-body" id="toolChips"></div>`;
+  view.appendChild(panel2);
+
+  await refreshHealth();
+}
+
+function skeletonStats(){
+  return ['Tools Available','Uptime','Essential Tools','Endpoints Wired'].map(l=>
+    `<div class="stat-card"><div class="stat-val">—</div><div class="stat-label">${l}</div></div>`).join('');
+}
+
+async function refreshHealth(){
+  const h = await fetchHealth();
+  const sg = $('#ovStats');
+  if (!sg) return;
+  if (!h){
+    sg.innerHTML = `<div class="stat-card"><div class="stat-val red">OFFLINE</div><div class="stat-label">Cannot reach ${esc(state.base)}</div></div>`;
+    $('#catBars').innerHTML = `<div class="empty-state"><div class="big">⚠</div>Server unreachable. Start it with:<br><code style="color:var(--accent)">python3 hexstrike_server.py</code></div>`;
+    $('#toolChips').innerHTML = '';
+    return;
+  }
+  const uptimeH = (h.uptime/3600).toFixed(1);
+  sg.innerHTML = `
+    <div class="stat-card"><div class="stat-val accent">${h.total_tools_available}<span style="color:var(--text-2);font-size:15px">/${h.total_tools_count}</span></div><div class="stat-label">Tools Available</div></div>
+    <div class="stat-card"><div class="stat-val">${uptimeH}h</div><div class="stat-label">Server Uptime</div></div>
+    <div class="stat-card"><div class="stat-val ${h.all_essential_tools_available?'accent':'red'}">${h.all_essential_tools_available?'READY':'MISSING'}</div><div class="stat-label">Essential Tools</div></div>
+    <div class="stat-card"><div class="stat-val">${ALL.length}</div><div class="stat-label">Endpoints Wired</div></div>
+  `;
+
+  const bars = $('#catBars');
+  bars.innerHTML = '';
+  const grid = el('div','cat-bars');
+  for (const cat in h.category_stats){
+    const c = h.category_stats[cat];
+    const pct = c.total ? Math.round(100*c.available/c.total) : 0;
+    const b = el('div','cat-bar');
+    b.innerHTML = `<div class="cat-bar-top"><b>${(CAT_LABEL[cat]||cat).replace(/_/g,' ')}</b><span>${c.available}/${c.total}</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>`;
+    grid.appendChild(b);
+  }
+  bars.appendChild(grid);
+
+  const chipsWrap = $('#toolChips');
+  chipsWrap.innerHTML = '';
+  for (const cat in HEALTHCATS){
+    const catBlock = el('div');
+    catBlock.style.marginBottom = '14px';
+    catBlock.innerHTML = `<div style="font-size:10.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:7px">${(CAT_LABEL[cat]||cat).replace(/_/g,' ')}</div>`;
+    const row = el('div','tool-chip-grid');
+    HEALTHCATS[cat].forEach(tool=>{
+      const ok = h.tools_status ? h.tools_status[tool] : false;
+      const chip = el('span','tool-chip');
+      chip.innerHTML = `<span class="dot ${ok?'on':'off'}" style="width:6px;height:6px"></span>${esc(tool)}`;
+      row.appendChild(chip);
+    });
+    catBlock.appendChild(row);
+    chipsWrap.appendChild(catBlock);
+  }
+}
+
+function startHealthPolling(){
+  state.healthTimer = setInterval(refreshHealth, 12000);
+}
+
+// ---------------- tool grid ----------------
+function pageHead(title, sub, actionsHtml){
+  const h = el('div','page-head');
+  h.innerHTML = `<div><div class="page-title">${esc(title)}</div><div class="page-sub">${sub||''}</div></div><div class="page-actions">${actionsHtml||''}</div>`;
+  return h;
+}
+
+function renderToolGrid(view, group, sub){
+  const items = sub ? (HEXDATA[group][sub]||[]) : Object.values(HEXDATA[group]||{}).flat();
+  const title = sub || group;
+  view.appendChild(pageHead(title, `${items.length} endpoint${items.length===1?'':'s'}` + (sub?` in ${group}`:''), ));
+
+  if (group === 'Security Tools' && !sub){
+    const toolbar = el('div','toolbar');
+    Object.keys(HEXDATA['Security Tools']).forEach(s=>{
+      const chip = el('button','chip-filter', `${SUB_ICON[s]||''} ${s} (${HEXDATA['Security Tools'][s].length})`);
+      chip.addEventListener('click', ()=> setView('Security Tools', s));
+      toolbar.appendChild(chip);
+    });
+    view.appendChild(toolbar);
+  }
+
+  const grid = el('div','card-grid');
+  items.forEach(r => grid.appendChild(toolCard(r, group, sub||r.sub)));
+  view.appendChild(grid);
+}
+
+function toolCard(r, group, sub){
+  const c = el('div','tool-card');
+  c.setAttribute('role','button');
+  c.setAttribute('tabindex','0');
+  c.setAttribute('aria-label', 'Open ' + shortName(r.path));
+  const method = r.methods[0];
+  c.innerHTML = `
+    <div class="tool-card-top">
+      <span class="tool-name">${esc(shortName(r.path))}</span>
+      <span class="method-badge ${method}">${method}</span>
+    </div>
+    <div class="tool-doc">${esc(r.doc||'No description available.')}</div>
+    <div class="tool-card-foot">
+      <span class="cat-tag">${esc(sub||group)}</span>
+      <span class="param-count">${r.params.length} param${r.params.length===1?'':'s'}</span>
+    </div>`;
+  c.addEventListener('click', ()=> openDrawer(r));
+  c.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openDrawer(r); } });
+  return c;
+}
+
+function shortName(path){
+  const parts = path.split('/').filter(Boolean);
+  return parts[parts.length-1];
+}
+
+// ---------------- search ----------------
+function renderSearchResults(view){
+  const q = state.search.toLowerCase();
+  const matches = ALL.filter(r =>
+    r.path.toLowerCase().includes(q) ||
+    (r.doc||'').toLowerCase().includes(q) ||
+    r.group.toLowerCase().includes(q) ||
+    (r.sub||'').toLowerCase().includes(q)
+  );
+  view.appendChild(pageHead('Search results', `${matches.length} match${matches.length===1?'':'es'} for "${esc(state.search)}"`));
+  if (!matches.length){
+    view.appendChild(el('div','empty-state','<div class="big">∅</div>No endpoints match your search.'));
+    return;
+  }
+  const grid = el('div','card-grid');
+  matches.forEach(r => grid.appendChild(toolCard(r, r.group, r.sub)));
+  view.appendChild(grid);
+}
+
+// ---------------- process manager ----------------
+async function renderProcessManager(view){
+  view.appendChild(pageHead('Process Manager', 'Live view of everything HexStrike is currently running.'));
+  const stats = el('div','stat-grid'); stats.id = 'procStats'; stats.innerHTML = skeletonStats();
+  view.appendChild(stats);
+  const panel = el('div','panel');
+  panel.innerHTML = `<div class="panel-head"><h3>▣ Active processes</h3><span id="procUpdated" style="font-size:10.5px;color:var(--text-2);font-family:var(--mono)"></span></div><div class="panel-body" id="procBody"><div class="empty-state">Loading…</div></div>`;
+  view.appendChild(panel);
+  await refreshProcesses();
+}
+
+async function refreshProcesses(){
+  const body = $('#procBody');
+  if (!body) return;
+  try{
+    const res = await fetch(state.base + '/api/processes/dashboard');
+    const d = await res.json();
+    setConn(true);
+    const sl = d.system_load || {};
+    $('#procStats').innerHTML = `
+      <div class="stat-card"><div class="stat-val accent">${d.total_processes ?? 0}</div><div class="stat-label">Active Processes</div></div>
+      <div class="stat-card"><div class="stat-val">${(sl.cpu_percent??0).toFixed(1)}%</div><div class="stat-label">CPU Load</div></div>
+      <div class="stat-card"><div class="stat-val">${(sl.memory_percent??0).toFixed(1)}%</div><div class="stat-label">Memory</div></div>
+      <div class="stat-card"><div class="stat-val">${sl.active_connections ?? 0}</div><div class="stat-label">Connections</div></div>`;
+    $('#procUpdated').textContent = 'updated ' + new Date().toLocaleTimeString();
+
+    if (!d.processes || !d.processes.length){
+      body.innerHTML = `<div class="empty-state"><div class="big">◌</div>Nothing running right now.<br>Kick off a scan from the Security Tools tab.</div>`;
+      return;
+    }
+    const table = el('table','proc-table');
+    table.innerHTML = `<thead><tr><th>PID</th><th>Command</th><th>Status</th><th>Progress</th><th>Runtime</th><th>ETA</th><th></th></tr></thead>`;
+    const tbody = el('tbody');
+    d.processes.forEach(p=>{
+      const tr = el('tr');
+      const st = (p.status||'running').toLowerCase();
+      tr.innerHTML = `
+        <td style="font-family:var(--mono);color:var(--text-2)">${p.pid}</td>
+        <td class="proc-cmd" title="${esc(p.command)}">${esc(p.command)}</td>
+        <td><span class="status-pill ${st}">${esc(p.status)}</span></td>
+        <td><div class="mini-bar"><div class="fill" style="width:${esc(p.progress_percent||'0%')}"></div></div></td>
+        <td style="font-family:var(--mono);color:var(--text-2)">${esc(p.runtime)}</td>
+        <td style="font-family:var(--mono);color:var(--text-2)">${esc(p.eta)}</td>
+        <td><div class="row-actions"></div></td>`;
+      const actions = tr.querySelector('.row-actions');
+      if (st === 'running' || st === 'paused'){
+        const pauseBtn = el('button','icon-btn', st==='paused' ? '▶' : '⏸');
+        pauseBtn.title = st==='paused' ? 'Resume' : 'Pause';
+        pauseBtn.addEventListener('click', ()=> procAction(st==='paused'?'resume':'pause', p.pid));
+        actions.appendChild(pauseBtn);
+      }
+      const stopBtn = el('button','icon-btn stop','⏹');
+      stopBtn.title = 'Terminate';
+      stopBtn.addEventListener('click', ()=> procAction('terminate', p.pid));
+      actions.appendChild(stopBtn);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    body.innerHTML = '';
+    body.appendChild(table);
+  }catch(e){
+    setConn(false);
+    body.innerHTML = `<div class="empty-state"><div class="big">⚠</div>Cannot reach the server.</div>`;
+  }
+}
+
+async function procAction(action, pid){
+  try{
+    await fetch(`${state.base}/api/processes/${action}/${pid}`, {method:'POST'});
+    toast(`${action} sent to PID ${pid}`);
+    refreshProcesses();
+  }catch(e){
+    toast(`Failed to ${action} PID ${pid}`, true);
+  }
+}
+
+function startProcPolling(){
+  state.procTimer = setInterval(refreshProcesses, 3000);
+}
+
+// ---------------- activity log ----------------
+function renderActivity(view){
+  view.appendChild(pageHead('Activity', 'Runs made from this dashboard, newest first — kept in your browser only.',
+    '<button class="btn sm ghost" id="clearLogBtn">Clear log</button>'));
+  const panel = el('div','panel');
+  const body = el('div','panel-body');
+  if (!state.history.length){
+    body.innerHTML = `<div class="empty-state"><div class="big">≡</div>Nothing run yet. Fire a tool from the Security Tools tab.</div>`;
+  } else {
+    state.history.forEach(h=>{
+      const item = el('div','log-item');
+      item.innerHTML = `<span class="log-dot ${h.ok?'ok':'fail'}"></span>
+        <div class="log-main">
+          <div class="log-top"><span class="log-path">${esc(h.method)} ${esc(h.path)}</span><span class="log-time">${esc(h.time)}</span></div>
+          <div class="log-meta">${esc(h.summary||'')}</div>
+        </div>`;
+      body.appendChild(item);
+    });
+  }
+  panel.appendChild(body);
+  view.appendChild(panel);
+  const clearBtn = $('#clearLogBtn');
+  if (clearBtn) clearBtn.addEventListener('click', ()=>{
+    state.history = [];
+    localStorage.setItem('hx_history','[]');
+    render(); buildSidebar(); refreshSidebarActive();
+  });
+}
+
+function pushHistory(entry){
+  state.history.unshift(entry);
+  state.history = state.history.slice(0,60);
+  localStorage.setItem('hx_history', JSON.stringify(state.history));
+}
+
+// ---------------- help ----------------
+function cmdBox(cmd, note){
+  const box = el('div','cmd-box');
+  box.innerHTML = `<code></code><button class="cmd-copy" title="Copy command">⧉</button>` + (note?`<span class="cmd-note">${esc(note)}</span>`:'');
+  box.querySelector('code').textContent = cmd;
+  box.querySelector('.cmd-copy').addEventListener('click', (e)=>{
+    navigator.clipboard.writeText(cmd).then(()=>toast('Command copied')).catch(()=>toast('Copy failed', true));
+  });
+  return box;
+}
+
+function helpStep(n, title, bodyEl){
+  const step = el('div','help-step');
+  step.innerHTML = `<div class="help-step-num">${n}</div><div class="help-step-body"><h4>${esc(title)}</h4></div>`;
+  if (bodyEl) step.querySelector('.help-step-body').appendChild(bodyEl);
+  return step;
+}
+
+function renderHelp(view){
+  view.appendChild(pageHead('Help & Getting Started', 'Everything you need to launch HexStrike and drive it from this dashboard.'));
+
+  // Prerequisites
+  const p0 = el('div','panel');
+  p0.innerHTML = `<div class="panel-head"><h3>◍ Prerequisites</h3></div>`;
+  const p0body = el('div','panel-body');
+  p0body.innerHTML = `<p style="color:var(--text-1);margin:0 0 10px">This dashboard needs nothing beyond Flask, already required by <code>hexstrike_server.py</code>. Each tool card underneath it shells out to a real security tool (nmap, gobuster, sqlmap, ghidra, …) — those need to be installed separately and be on your <code>$PATH</code>. You don't need all 150+ to start; the server runs fine and the Overview tab will just show which ones it can't find.</p>`;
+  p0.appendChild(p0body);
+  view.appendChild(p0);
+
+  // Start the server
+  const p1 = el('div','panel');
+  p1.innerHTML = `<div class="panel-head"><h3>▶ Start the server</h3></div>`;
+  const p1body = el('div','panel-body');
+  p1body.appendChild(helpStep(1, 'Move into the project directory', cmdBox('cd /home/s1/hexstrike-ai')));
+  const step2 = helpStep(2, 'Launch it', cmdBox('python3 hexstrike_server.py'));
+  const note = el('p'); note.style.cssText='color:var(--text-2);font-size:12px;margin:8px 0 0';
+  note.textContent = 'Leave this terminal running — it hosts both the API and this dashboard. Ctrl+C stops it.';
+  step2.querySelector('.help-step-body').appendChild(note);
+  p1body.appendChild(step2);
+  const step3 = helpStep(3, 'Open the dashboard', null);
+  const linkP = el('p'); linkP.style.cssText='margin:0';
+  linkP.innerHTML = `<a href="/" style="color:var(--accent);font-family:var(--mono)">http://localhost:8888/</a> — served directly by Flask, no build step.`;
+  step3.querySelector('.help-step-body').appendChild(linkP);
+  p1body.appendChild(step3);
+  p1body.appendChild(el('div','field-sep-note'));
+  const optRow = el('div'); optRow.style.cssText='margin-top:14px';
+  optRow.innerHTML = `<div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px">Optional flags</div>`;
+  optRow.appendChild(cmdBox('python3 hexstrike_server.py --port 9000', 'run on a different port'));
+  const flagsWrap = el('div'); flagsWrap.style.marginTop='8px';
+  flagsWrap.appendChild(cmdBox('python3 hexstrike_server.py --debug', 'verbose logging'));
+  optRow.appendChild(flagsWrap);
+  p1body.appendChild(optRow);
+  p1.appendChild(p1body);
+  view.appendChild(p1);
+
+  // Using the dashboard
+  const p2 = el('div','panel');
+  p2.innerHTML = `<div class="panel-head"><h3>⚔ Using the dashboard</h3></div>`;
+  const p2body = el('div','panel-body');
+  p2body.innerHTML = `
+    <div class="help-block">
+      <h4>Top bar</h4>
+      <ul>
+        <li>Search box (or press <span class="search-kbd" style="position:static">/</span>) fuzzy-searches all ${ALL.length} endpoints by name and description.</li>
+        <li><b>Target</b> field — set an IP or domain once and it auto-fills into any tool's <code>target</code>/<code>url</code>/<code>domain</code>/<code>ip</code> field when you open it.</li>
+        <li>The dot on the right shows live connection status to the server.</li>
+      </ul>
+    </div>
+    <div class="help-block">
+      <h4>Sidebar</h4>
+      <ul>
+        <li><b>◆ Overview</b> — health check: which tools are actually installed, uptime, per-category availability.</li>
+        <li><b>⚔ Security Tools</b> — the 90 individual tools, grouped into Network, Web App, Binary/RE, Cloud, OSINT, etc.</li>
+        <li><b>◈ AI Intelligence / ◉ Vulnerability Intel / ◎ Bug Bounty / ▲ CTF Toolkit</b> — the higher-level workflow endpoints (target analysis, attack-chain discovery, recon workflows, CVE lookups, CTF solvers).</li>
+        <li><b>▣ Process Manager</b> — everything currently running, live.</li>
+        <li><b>▦ Visual Reports / ⚙ System</b> — reporting helpers, file ops, cache, raw command execution.</li>
+      </ul>
+    </div>
+    <div class="help-block">
+      <h4>Running a tool</h4>
+      <ol>
+        <li>Click any card — a drawer slides in with a form built from that endpoint's actual parameters, correct defaults pre-filled.</li>
+        <li>Fill in what you need (target is usually the only required field).</li>
+        <li>Click <b>▶ Run</b> — it POSTs to the real endpoint and shows the JSON response, including <code>stdout</code>/<code>stderr</code> if the tool ran.</li>
+        <li><b>Copy as curl</b> grabs the equivalent curl command if you'd rather run it from a terminal.</li>
+      </ol>
+    </div>
+    <div class="help-block">
+      <h4>Process Manager</h4>
+      <p>Long-running scans (nmap, ffuf, etc.) show up here with a live progress bar — pause, resume, or terminate mid-run without touching a terminal.</p>
+    </div>
+    <div class="help-block">
+      <h4>Activity</h4>
+      <p>A local history of everything you've run from this dashboard this session — kept in your browser only, never sent anywhere.</p>
+    </div>`;
+  p2.appendChild(p2body);
+  view.appendChild(p2);
+
+  // Troubleshooting
+  const p3 = el('div','panel');
+  p3.innerHTML = `<div class="panel-head"><h3>⚠ If a tool endpoint fails</h3></div>`;
+  const p3body = el('div','panel-body');
+  p3body.innerHTML = `<p style="color:var(--text-1);margin:0">Check the <b>Overview</b> tab first — if a tool's chip is red, it isn't installed or isn't on <code>$PATH</code>, which is why the endpoint errors out. That's expected until you install the specific tool you want to use.</p>`;
+  p3.appendChild(p3body);
+  view.appendChild(p3);
+}
+
+// ---------------- drawer / form / run ----------------
+let currentRoute = null;
+
+function openDrawer(r){
+  currentRoute = r;
+  $('#drawerTitle').textContent = `${r.methods[0]} ${r.path}`;
+  $('#drawerDoc').textContent = r.doc || '';
+  const body = $('#drawerBody');
+  body.innerHTML = '';
+  body.appendChild(el('div','endpoint-line', `<b>${r.methods[0]}</b> ${esc(state.base + r.path)}`));
+
+  if (!r.params.length){
+    body.appendChild(el('div','field','<span style="color:var(--text-2);font-size:12px">This endpoint takes no parameters — just hit Run.</span>'));
+  }
+
+  const globalTarget = $('#globalTarget').value.trim();
+  const TARGET_NAMES = ['target','url','domain','ip','host'];
+
+  r.params.forEach(p=>{
+    const field = el('div','field');
+    const isBool = typeof p.default === 'boolean';
+    const isNum = typeof p.default === 'number';
+    const isObj = typeof p.default === 'object' && p.default !== null;
+    let prefill = p.default==null ? '' : (isObj ? JSON.stringify(p.default) : p.default);
+    if (TARGET_NAMES.includes(p.name) && globalTarget) prefill = globalTarget;
+
+    const labelHtml = `<label>${esc(p.name)}${p.required?' <span class="req">*</span>':''}${p.inpath?' <span class="hint">(in URL path)</span>':''}</label>`;
+
+    if (isBool){
+      field.innerHTML = labelHtml + `<div class="field-check"><label class="switch"><input type="checkbox" data-pname="${esc(p.name)}" data-ptype="bool" ${p.default?'checked':''}><span class="slider"></span></label><span style="color:var(--text-2);font-size:11.5px">${p.default? 'true':'false'} by default</span></div>`;
+    } else if (isNum){
+      field.innerHTML = labelHtml + `<input type="number" data-pname="${esc(p.name)}" data-ptype="num" value="${esc(prefill)}">`;
+    } else if (isObj || String(prefill).length > 60){
+      field.innerHTML = labelHtml + `<textarea data-pname="${esc(p.name)}" data-ptype="${isObj?'json':'str'}" placeholder="${isObj?'JSON value':'value'}">${esc(prefill)}</textarea>`;
+    } else {
+      field.innerHTML = labelHtml + `<input type="text" data-pname="${esc(p.name)}" data-ptype="str" value="${esc(prefill)}" placeholder="${p.required?'required':'optional'}">`;
+    }
+    body.appendChild(field);
+  });
+
+  const outWrap = el('div'); outWrap.id = 'drawerOutput';
+  body.appendChild(outWrap);
+
+  $('#runStatus').textContent = '';
+  $('#overlay').classList.add('open');
+  $('#drawer').classList.add('open');
+}
+
+function closeDrawer(){
+  $('#overlay').classList.remove('open');
+  $('#drawer').classList.remove('open');
+}
+
+function collectFormValues(){
+  const values = {};
+  document.querySelectorAll('#drawerBody [data-pname]').forEach(elm=>{
+    const name = elm.dataset.pname;
+    const type = elm.dataset.ptype;
+    if (type === 'bool'){ values[name] = elm.checked; return; }
+    if (type === 'num'){ values[name] = elm.value === '' ? null : Number(elm.value); return; }
+    if (type === 'json'){
+      try{ values[name] = elm.value.trim() ? JSON.parse(elm.value) : null; }
+      catch(e){ values[name] = elm.value; }
+      return;
+    }
+    values[name] = elm.value;
+  });
+  return values;
+}
+
+function buildRequest(){
+  const r = currentRoute;
+  const values = collectFormValues();
+  let path = r.path;
+  const method = r.methods[0];
+  const bodyParams = {};
+  const queryParts = [];
+  r.params.forEach(p=>{
+    const v = values[p.name];
+    if (p.inpath){
+      path = path.replace(new RegExp('<[^>]*'+p.name+'>'), encodeURIComponent(v));
+    } else if (method === 'GET' && p.source === 'query'){
+      if (v !== '' && v != null) queryParts.push(`${encodeURIComponent(p.name)}=${encodeURIComponent(v)}`);
+    } else {
+      bodyParams[p.name] = v;
+    }
+  });
+  let url = state.base + path;
+  if (queryParts.length) url += '?' + queryParts.join('&');
+  const hasBody = method !== 'GET' && r.params.some(p=>!p.inpath && !(method==='GET'&&p.source==='query'));
+  return {url, method, body: hasBody ? bodyParams : null};
+}
+
+async function runCurrent(){
+  const {url, method, body} = buildRequest();
+  const runBtn = $('#runBtn');
+  runBtn.disabled = true;
+  runBtn.innerHTML = '<span class="spin"></span> Running…';
+  $('#runStatus').textContent = method + ' ' + url.replace(state.base,'');
+  const outWrap = $('#drawerOutput');
+  outWrap.innerHTML = '';
+  const startedAt = Date.now();
+
+  try{
+    const opts = {method, headers:{}};
+    if (body){ opts.headers['Content-Type']='application/json'; opts.body = JSON.stringify(body); }
+    const res = await fetch(url, opts);
+    const ms = Date.now()-startedAt;
+    let data;
+    const text = await res.text();
+    try{ data = JSON.parse(text); }catch(e){ data = text; }
+    setConn(true);
+
+    const box = el('div','output-box');
+    const ok = res.ok;
+    box.innerHTML = `<div class="output-head"><span>${ok?'✓ '+res.status:'✗ '+res.status} · ${ms}ms</span></div>`;
+    const pre = el('pre','output-pre'+(ok?'':' err'), esc(typeof data==='string'?data:JSON.stringify(data,null,2)));
+    box.appendChild(pre);
+    outWrap.appendChild(box);
+
+    pushHistory({
+      path: currentRoute.path, method, ok,
+      time: new Date().toLocaleTimeString(),
+      summary: ok ? `${ms}ms · ${res.status}` : (data && data.error ? String(data.error).slice(0,120) : `HTTP ${res.status}`)
+    });
+    toast(ok ? `${shortName(currentRoute.path)} completed` : `${shortName(currentRoute.path)} failed (${res.status})`, !ok);
+  }catch(e){
+    setConn(false);
+    const box = el('div','output-box');
+    box.innerHTML = `<div class="output-head"><span>✗ network error</span></div>`;
+    box.appendChild(el('pre','output-pre err', esc(String(e))));
+    outWrap.appendChild(box);
+    pushHistory({path: currentRoute.path, method, ok:false, time:new Date().toLocaleTimeString(), summary:'Network error — is the server running?'});
+    toast('Network error — server unreachable', true);
+  } finally {
+    runBtn.disabled = false;
+    runBtn.innerHTML = '▶ Run';
+  }
+}
+
+function copyCurl(){
+  const {url, method, body} = buildRequest();
+  let cmd = `curl -sS -X ${method} '${url}'`;
+  if (body) cmd += ` \\\n  -H 'Content-Type: application/json' \\\n  -d '${JSON.stringify(body).replace(/'/g,"'\\''")}'`;
+  navigator.clipboard.writeText(cmd).then(()=> toast('curl command copied')).catch(()=> toast('Copy failed', true));
+}
+
+// ---------------- init ----------------
+function init(){
+  buildSidebar();
+  refreshSidebarActive();
+  setView('Overview', null);
+
+  $('#searchInput').addEventListener('input', e=>{
+    state.search = e.target.value;
+    render();
+  });
+  document.addEventListener('keydown', e=>{
+    if (e.key === '/' && document.activeElement !== $('#searchInput')){
+      e.preventDefault(); $('#searchInput').focus();
+    }
+    if (e.key === 'Escape') closeDrawer();
+  });
+  $('#drawerClose').addEventListener('click', closeDrawer);
+  $('#overlay').addEventListener('click', closeDrawer);
+  $('#runBtn').addEventListener('click', runCurrent);
+  $('#copyCurlBtn').addEventListener('click', copyCurl);
+  $('#connBadge').addEventListener('click', ()=> state.view==='Process Manager' ? refreshProcesses() : refreshHealth());
+  $('#globalTarget').value = localStorage.getItem('hx_target') || '';
+  $('#globalTarget').addEventListener('change', e=> localStorage.setItem('hx_target', e.target.value));
+
+  fetchHealth().then(h=> setConn(!!h));
+}
+
+document.addEventListener('DOMContentLoaded', init);
+})();
+
+</script>
+</body>
+</html>

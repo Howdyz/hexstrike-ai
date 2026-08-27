@@ -9135,11 +9135,20 @@ file_manager = FileOperationsManager()
 
 # API Routes
 
+def _app_base_dir():
+    """Directory dashboard.html actually lives next to. A frozen PyInstaller
+    onefile build unpacks its bundled data files to sys._MEIPASS at runtime —
+    __file__ inside a frozen module doesn't point at a real directory on disk,
+    so it can't be used to find dashboard.html there."""
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
 @app.route("/", methods=["GET"])
 @app.route("/dashboard", methods=["GET"])
 def dashboard():
     """Serve the HexStrike control-deck GUI"""
-    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
+    return send_from_directory(_app_base_dir(), "dashboard.html")
 
 @app.route("/health", methods=["GET"])
 def health_check():

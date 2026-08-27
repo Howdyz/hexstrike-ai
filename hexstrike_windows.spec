@@ -13,7 +13,10 @@
 
 from PyInstaller.utils.hooks import collect_all
 
-datas = []
+# dashboard.html goes to the extraction root ('.') — hexstrike_server.py's
+# dashboard route looks for it via sys._MEIPASS at runtime, which is exactly
+# where PyInstaller unpacks entries whose destination is '.'.
+datas = [('dashboard.html', '.')]
 binaries = []
 hiddenimports = []
 
