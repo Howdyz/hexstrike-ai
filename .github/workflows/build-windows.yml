@@ -10,12 +10,9 @@ on:
   push:
     branches: [master, main]
     paths:
-      - 'hexstrike_server.py'
       - 'hexstrike_windows_app.py'
-      - 'hexstrike_tool_installer.py'
       - 'hexstrike_windows.spec'
       - 'requirements-windows.txt'
-      - 'dashboard.html'
       - '.github/workflows/build-windows.yml'
   workflow_dispatch: {}
 
@@ -61,8 +58,9 @@ jobs:
           name: HexStrike AI — Windows build
           body: |
             Automatically built from commit ${{ github.sha }} by build-windows.yml.
-            Download HexStrikeAI-Windows.exe below and double-click it — no install,
-            no terminal. See the site's Ultimate Tool Kit — Windows panel for the
-            safety terms before you use it.
+            HexStrikeAI-Windows.exe: the launcher — download and run it, it sets
+            up WSL2 and downloads/imports the hexstrike-wsl-rootfs.tar.gz image
+            for you, no terminal needed. See the site's Ultimate Tool Kit —
+            Windows panel for the safety terms before you use it.
           make_latest: true
           files: dist/HexStrikeAI-Windows.exe

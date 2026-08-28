@@ -1,0 +1,62 @@
+name: Build WSL rootfs
+
+# Builds the HexStrike WSL2 appliance image: a real Kali userland with
+# hexstrike_server.py and its tool ecosystem already apt-installed, exported
+# to a tarball `wsl --import` turns into a distro on the Windows side. Runs
+# on ubuntu-latest (needs real Docker, not something windows-latest offers
+# cleanly) — a separate job from build-windows.yml, which now only builds
+# the thin Windows-side launcher/orchestrator.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'hexstrike_server.py'
+      - 'requirements.txt'
+      - 'dashboard.html'
+      - 'assets/**'
+      - 'wsl/Dockerfile'
+      - '.github/workflows/build-wsl-rootfs.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -f wsl/Dockerfile -t hexstrike-wsl .
+
+      - name: Export rootfs
+        run: |
+          container_id=$(docker create hexstrike-wsl)
+          docker export "$container_id" | gzip > hexstrike-wsl-rootfs.tar.gz
+          docker rm "$container_id"
+
+      - name: Report size
+        run: ls -lh hexstrike-wsl-rootfs.tar.gz
+
+      - name: Upload build artifact (per-run, for debugging failed releases)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hexstrike-wsl-rootfs
+          path: hexstrike-wsl-rootfs.tar.gz
+          retention-days: 14
+
+      - name: Publish / update rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-build
+          name: HexStrike AI — Windows build
+          body: |
+            Automatically built from commit ${{ github.sha }}.
+            HexStrikeAI-Windows.exe: the launcher — download and run it, it
+            sets up WSL2 and this rootfs image for you, no terminal needed.
+            hexstrike-wsl-rootfs.tar.gz: the actual HexStrike + full Kali
+            tool environment the launcher imports into WSL2 on first run.
+          make_latest: true
+          files: hexstrike-wsl-rootfs.tar.gz
