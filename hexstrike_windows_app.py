@@ -1,88 +1,194 @@
 #!/usr/bin/env python3
 """
-HexStrike AI — Windows edition, single-file, no terminal.
+HexStrike AI — Windows launcher, WSL2 edition.
 
-This is the entry point built into HexStrikeAI-Windows.exe by
-hexstrike_windows.spec / .github/workflows/build-windows.yml. Unlike the
-Linux flow (a tiny launcher process that starts hexstrike_server.py on
-request from the browser), there is nothing to install and nothing to run
-from a command line here: double-clicking the .exe *is* "starting the
-server" — it imports hexstrike_server as a library, runs its Flask app on
-127.0.0.1:8888 in a background thread, and shows a small status window so
-the person running it can see it's alive without ever seeing a console.
+This does NOT run hexstrike_server.py itself anymore. It's a thin
+orchestrator around a WSL2 distro ("HexStrikeAI") that has the real thing —
+a genuine Kali userland with hexstrike_server.py and its whole tool
+ecosystem installed via apt (see wsl/Dockerfile) — imported into it. That's
+the entire reason this exists: the previous all-in-one PyInstaller exe could
+only offer the handful of tools with a native Windows binary; running the
+real Linux server inside a real (if minimal) Linux VM means every tool
+HexStrike can drive on Kali just works here too, no picking and choosing.
 
-The Ultimate Tool Kit — Windows panel on the site talks to the exact same
-endpoints the Linux panel does (GET /health, POST /api/kill-switch) — same
-process, same port, same JSON API — so nothing on the site's JS side needs
-to know which OS produced the process it's talking to.
+Still "no terminal" for the person running it: every wsl.exe/dism call this
+makes runs hidden (CREATE_NO_WINDOW) with output routed into the GUI's log
+box, and enabling the WSL2 Windows feature (the one step that must be
+elevated — Windows won't let anything toggle OS features without it) is
+triggered via ShellExecute's "runas" verb, which raises the normal UAC
+dialog rather than requiring the user to open an admin terminal themselves.
+
+WSL2 gives a service bound to 0.0.0.0 inside the distro automatic loopback
+forwarding to 127.0.0.1 on the Windows host — hexstrike_server.py's own
+`app.run(host="0.0.0.0", ...)` already does the right thing unmodified, no
+wrapper needed the way the old in-process exe needed one.
 """
 
+import ctypes
 import os
+import subprocess
 import sys
+import tempfile
 import threading
+import time
 import webbrowser
-
-# Must happen before hexstrike_server is imported: a windowed (--noconsole)
-# PyInstaller build has no real stdout/stderr, and hexstrike_server.py (like
-# any 17k-line script) has bare print() calls scattered through request
-# handlers. Rather than track down every one, give it harmless no-op streams
-# so none of them can ever crash a request with "NoneType has no attribute
-# 'write'" — a well-known failure mode for frozen windowed apps.
-class _NullStream:
-    def write(self, *a, **k):
-        pass
-
-    def flush(self):
-        pass
-
-
-if sys.stdout is None:
-    sys.stdout = _NullStream()
-if sys.stderr is None:
-    sys.stderr = _NullStream()
-
-os.environ.setdefault("HEXSTRIKE_PORT", "8888")
+from pathlib import Path
 
 import tkinter as tk
 from tkinter import scrolledtext
 
-import hexstrike_server as hx  # noqa: E402  (must come after the stdout/stderr guard above)
-import hexstrike_tool_installer as tool_installer  # noqa: E402
+try:
+    import requests
+except ImportError:
+    requests = None
 
-# A previous run may have already installed tools to %LOCALAPPDATA%\HexStrike\tools —
-# make them visible to this run's subprocess calls immediately, no re-download needed.
-tool_installer.apply_to_path()
+DISTRO_NAME = "HexStrikeAI"
+DASHBOARD_URL = "http://127.0.0.1:8888"
+ROOTFS_URL = "https://github.com/Howdyz/hexstrike-ai/releases/latest/download/hexstrike-wsl-rootfs.tar.gz"
+INSTALL_DIR = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "HexStrike" / "wsl"
 
-HOST = "127.0.0.1"
-PORT = hx.API_PORT
-DASHBOARD_URL = f"http://{HOST}:{PORT}"
-
-_server_thread = None
-_server_started = threading.Event()
+_NO_WINDOW = 0x08000000  # subprocess.CREATE_NO_WINDOW, defined only on Windows
 
 
-def _run_server():
+def _run_hidden(cmd, timeout=None, **kwargs):
+    flags = _NO_WINDOW if os.name == "nt" else 0
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                           creationflags=flags, **kwargs)
+
+
+def _popen_hidden(cmd, **kwargs):
+    flags = _NO_WINDOW if os.name == "nt" else 0
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             text=True, creationflags=flags, **kwargs)
+
+
+def wsl_feature_enabled():
+    """True if `wsl.exe` itself works well enough to list distros — i.e. the
+    Windows optional features are already on, whether or not our distro is
+    imported yet."""
     try:
-        hx.app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
+        result = _run_hidden(["wsl", "--status"], timeout=15)
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def distro_imported():
+    try:
+        result = _run_hidden(["wsl", "-l", "-q"], timeout=15)
+        names = [n.strip().replace("\x00", "") for n in result.stdout.splitlines()]
+        return DISTRO_NAME in names
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def install_wsl_feature(log):
+    """Enabling the WSL2 Windows feature is the one step Windows won't allow
+    without elevation — ShellExecute's "runas" verb raises the standard UAC
+    prompt rather than needing the user to find and open an admin terminal.
+    Returns True once wsl.exe reports working, False if it still doesn't
+    (most commonly: a restart is needed, which is a real Windows requirement
+    we can't script around)."""
+    log("WSL2 isn't set up yet on this PC — requesting permission to enable it "
+        "(you'll see a Windows admin prompt) ...")
+    try:
+        rc = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", "wsl.exe", "--install --no-distro", None, 0
+        )
+        if rc <= 32:
+            log("Permission was denied, or Windows couldn't launch the installer. "
+                "WSL2 setup needs to be approved to continue.")
+            return False
     except Exception as e:
-        hx.logger.error(f"HexStrike server thread died: {e}")
-    finally:
-        _server_started.clear()
+        log(f"Couldn't request elevation: {e}")
+        return False
+
+    for _ in range(60):
+        time.sleep(2)
+        if wsl_feature_enabled():
+            log("WSL2 is enabled.")
+            return True
+    log("WSL2 still isn't responding after setup — this Windows install likely "
+        "needs a restart before it finishes activating. Restart your PC, then "
+        "run HexStrikeAI-Windows.exe again.")
+    return False
 
 
-def start_server():
-    global _server_thread
-    if _server_thread and _server_thread.is_alive():
-        return
-    _server_thread = threading.Thread(target=_run_server, daemon=True)
-    _server_thread.start()
-    _server_started.set()
+def download_rootfs(dest_path, progress):
+    if requests is None:
+        progress(-1, "requests module unavailable — can't download")
+        return False
+    try:
+        with requests.get(ROOTFS_URL, stream=True, timeout=30) as r:
+            r.raise_for_status()
+            total = int(r.headers.get("content-length", 0))
+            done = 0
+            with open(dest_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    f.write(chunk)
+                    done += len(chunk)
+                    pct = int(done / total * 100) if total else -1
+                    progress(pct, f"{done / (1024*1024):.0f} MB" + (f" / {total / (1024*1024):.0f} MB" if total else ""))
+        return True
+    except Exception as e:
+        progress(-1, f"download failed: {e}")
+        return False
+
+
+def import_distro(tarball_path, log):
+    INSTALL_DIR.mkdir(parents=True, exist_ok=True)
+    log("Importing the HexStrike image into WSL2 (this can take a minute) ...")
+    result = _run_hidden(
+        ["wsl", "--import", DISTRO_NAME, str(INSTALL_DIR), str(tarball_path), "--version", "2"],
+        timeout=600,
+    )
+    if result.returncode == 0:
+        log("Import complete.")
+        return True
+    log(f"Import failed: {result.stderr.strip()[:300]}")
+    return False
+
+
+class ServerHandle:
+    """Wraps the `wsl -d HexStrikeAI -- python3 hexstrike_server.py` process —
+    same idea as the old in-process Flask thread, just one layer removed."""
+
+    def __init__(self):
+        self.process = None
+
+    def start(self, log):
+        if self.process and self.process.poll() is None:
+            return
+        self.process = _popen_hidden(
+            ["wsl", "-d", DISTRO_NAME, "--", "python3", "hexstrike_server.py"]
+        )
+
+        def pump_output():
+            for line in self.process.stdout:
+                log(line.rstrip("\n"))
+
+        threading.Thread(target=pump_output, daemon=True).start()
+
+    def stop(self):
+        if self.process and self.process.poll() is None:
+            self.process.terminate()
+        # `wsl --terminate` powers the whole lightweight VM off, not just the
+        # one process — the same "power off this one appliance" idea a
+        # VirtualBox-style player would give, just via the WSL2 CLI instead
+        # of a GUI VM manager.
+        _run_hidden(["wsl", "--terminate", DISTRO_NAME], timeout=30)
+
+    def is_running(self):
+        return self.process is not None and self.process.poll() is None
+
+
+server = ServerHandle()
 
 
 def build_ui():
     root = tk.Tk()
-    root.title("HexStrike AI (Windows)")
-    root.geometry("640x400")
+    root.title("HexStrike AI (Windows / WSL2)")
+    root.geometry("640x460")
     root.configure(bg="#14110F")
 
     fg = "#F2EDE1"
@@ -91,107 +197,109 @@ def build_ui():
     warn = "#E8402C"
 
     tk.Label(root, text="🛰️ HexStrike AI", font=("Segoe UI", 16, "bold"),
-              bg="#14110F", fg=fg).pack(pady=(18, 4))
+             bg="#14110F", fg=fg).pack(pady=(18, 4))
 
-    status_var = tk.StringVar(value=f"Starting on {DASHBOARD_URL} …")
+    status_var = tk.StringVar(value="Checking WSL2 …")
     status_label = tk.Label(root, textvariable=status_var, font=("Segoe UI", 10),
-                              bg="#14110F", fg=accent, wraplength=460, justify="center")
+                             bg="#14110F", fg=accent, wraplength=560, justify="center")
     status_label.pack(pady=(0, 14))
 
     tk.Label(root,
-             text=("Runs entirely on this machine — nothing here is hosted, proxied,\n"
-                   "or logged by Truth Button. Only point it at systems you own or are\n"
-                   "explicitly authorized to test. Keep this window open while you use it —\n"
-                   "closing it stops the server."),
+             text=("Runs entirely on this machine, inside a small dedicated Linux\n"
+                   "environment (WSL2) — nothing here is hosted, proxied, or logged by\n"
+                   "Truth Button. Only point it at systems you own or are explicitly\n"
+                   "authorized to test."),
              font=("Segoe UI", 9), bg="#14110F", fg=dim, justify="center").pack(pady=(0, 16), padx=20)
 
     btn_frame = tk.Frame(root, bg="#14110F")
     btn_frame.pack(pady=4)
 
-    def open_dashboard():
-        webbrowser.open(DASHBOARD_URL)
-
-    def open_manual_guide():
-        webbrowser.open("https://github.com/Howdyz/hexstrike-ai/blob/master/WINDOWS-MANUAL-TOOLS.md")
-
-    def do_quit():
-        os._exit(0)
-
-    def mk_button(parent, text, cmd, bg, fg="#14110F"):
-        b = tk.Button(parent, text=text, command=cmd, bg=bg, fg=fg,
-                      activebackground=bg, font=("Segoe UI", 9, "bold"),
-                      relief="flat", padx=10, pady=8, cursor="hand2")
-        return b
-
-    install_btn = mk_button(btn_frame, "📦 Install Tools", lambda: None, accent)
-    mk_button(btn_frame, "Open Dashboard →", open_dashboard, accent).grid(row=0, column=1, padx=4)
-    mk_button(btn_frame, "📖 Other Tools' Install Guide", open_manual_guide, dim, fg="#14110F").grid(row=0, column=2, padx=4)
-    mk_button(btn_frame, "🛑 Stop && Quit", do_quit, warn).grid(row=0, column=3, padx=4)
-    install_btn.grid(row=0, column=0, padx=4)
-
-    log_box = scrolledtext.ScrolledText(root, height=8, width=62, bg="#1C1814", fg=dim,
-                                          font=("Consolas", 8), relief="flat")
+    log_box = scrolledtext.ScrolledText(root, height=10, width=72, bg="#1C1814", fg=dim,
+                                         font=("Consolas", 8), relief="flat")
     log_box.pack(pady=(16, 10), padx=16)
     log_box.configure(state="disabled")
 
     def log_line(msg):
-        log_box.configure(state="normal")
-        log_box.insert(tk.END, str(msg).rstrip("\n") + "\n")
-        log_box.see(tk.END)
-        log_box.configure(state="disabled")
+        def _do():
+            log_box.configure(state="normal")
+            log_box.insert(tk.END, str(msg).rstrip("\n") + "\n")
+            log_box.see(tk.END)
+            log_box.configure(state="disabled")
+        root.after(0, _do)
 
-    class _TkLogHandler:
-        def write(self, msg):
-            if msg.strip():
-                log_line(msg)
+    def set_status(text, ok=True):
+        def _do():
+            status_var.set(text)
+            status_label.configure(fg=accent if ok else warn)
+        root.after(0, _do)
 
-        def flush(self):
-            pass
+    def open_dashboard():
+        webbrowser.open(DASHBOARD_URL)
 
-    import logging
-    handler = logging.StreamHandler(_TkLogHandler())
-    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s', datefmt='%H:%M:%S'))
-    hx.logger.addHandler(handler)
+    def do_quit():
+        server.stop()
+        os._exit(0)
 
-    _installing = threading.Event()
+    def mk_button(parent, text, cmd, bg):
+        return tk.Button(parent, text=text, command=cmd, bg=bg, fg="#14110F",
+                          activebackground=bg, font=("Segoe UI", 9, "bold"),
+                          relief="flat", padx=12, pady=8, cursor="hand2")
 
-    def do_install_tools():
-        if _installing.is_set():
-            return
-        _installing.set()
-        install_btn.configure(state="disabled", text="Installing…")
-        log_line("— Installing tools (nmap, hashcat, nuclei, httpx, subfinder, katana, ffuf, gobuster, dalfox) —")
+    start_btn = mk_button(btn_frame, "▶ Start HexStrike", lambda: None, accent)
+    dash_btn = mk_button(btn_frame, "Open Dashboard →", open_dashboard, accent)
+    stop_btn = mk_button(btn_frame, "🛑 Stop && Quit", do_quit, warn)
+    start_btn.grid(row=0, column=0, padx=4)
+    dash_btn.grid(row=0, column=1, padx=4)
+    stop_btn.grid(row=0, column=2, padx=4)
+    dash_btn.configure(state="disabled")
+
+    def do_start():
+        start_btn.configure(state="disabled", text="Starting…")
 
         def worker():
-            try:
-                # log_line() touches the Tk widget; schedule each line onto the
-                # main thread instead of calling it directly from this worker.
-                tool_installer.install_all(log=lambda m: root.after(0, log_line, m))
-            finally:
-                root.after(0, lambda: (install_btn.configure(state="normal", text="📦 Install Tools"),
-                                        _installing.clear()))
+            server.start(log_line)
+            set_status(f"Running — {DASHBOARD_URL}", ok=True)
+            root.after(0, lambda: dash_btn.configure(state="normal"))
+            root.after(0, lambda: start_btn.configure(text="▶ Start HexStrike", state="normal"))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    install_btn.configure(command=do_install_tools)
-    if tool_installer.already_installed():
-        log_line(f"Previously installed tools found at {tool_installer.TOOLS_DIR} — added to PATH for this session.")
+    start_btn.configure(command=do_start, state="disabled")
 
-    def poll_status():
-        if _server_started.is_set():
-            status_var.set(f"Running — {DASHBOARD_URL}")
-            status_label.configure(fg=accent)
-        else:
-            status_var.set("Stopped")
-            status_label.configure(fg=warn)
-        root.after(1000, poll_status)
+    def setup_flow():
+        if not wsl_feature_enabled():
+            set_status("Setting up WSL2 …", ok=False)
+            if not install_wsl_feature(log_line):
+                set_status("WSL2 setup incomplete — see the log below.", ok=False)
+                return
+
+        if not distro_imported():
+            set_status("Downloading HexStrike image …", ok=True)
+            with tempfile.TemporaryDirectory() as tmp:
+                tarball = Path(tmp) / "hexstrike-wsl-rootfs.tar.gz"
+
+                def progress(pct, text):
+                    if pct >= 0:
+                        set_status(f"Downloading HexStrike image — {pct}% ({text})")
+                    else:
+                        log_line(text)
+
+                if not download_rootfs(tarball, progress):
+                    set_status("Download failed — see the log below.", ok=False)
+                    return
+                if not import_distro(tarball, log_line):
+                    set_status("Import failed — see the log below.", ok=False)
+                    return
+
+        set_status("Ready.", ok=True)
+        root.after(0, lambda: start_btn.configure(state="normal"))
+
+    threading.Thread(target=setup_flow, daemon=True).start()
 
     root.protocol("WM_DELETE_WINDOW", do_quit)
-    poll_status()
     return root
 
 
 if __name__ == "__main__":
-    start_server()
     ui = build_ui()
     ui.mainloop()
