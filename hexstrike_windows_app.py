@@ -50,16 +50,33 @@ INSTALL_DIR = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "Hex
 _NO_WINDOW = 0x08000000  # subprocess.CREATE_NO_WINDOW, defined only on Windows
 
 
+def _decode_wsl_bytes(raw):
+    """wsl.exe writes UTF-16LE (often BOM-prefixed) to a redirected pipe
+    instead of the console codepage it uses on a real terminal — decoding
+    that as whatever the process's default text encoding happens to be
+    (which varies by Windows locale/UTF-8-mode setting) either garbles the
+    text or raises UnicodeDecodeError outright on the BOM bytes. Detect and
+    decode it properly instead of guessing."""
+    if raw[:2] == b"\xff\xfe":
+        return raw[2:].decode("utf-16le", errors="replace")
+    if raw[:2] == b"\xfe\xff":
+        return raw[2:].decode("utf-16be", errors="replace")
+    sample = raw[:200]
+    if sample.count(b"\x00") > len(sample) // 4:
+        return raw.decode("utf-16le", errors="replace")
+    return raw.decode("utf-8", errors="replace")
+
+
 def _run_hidden(cmd, timeout=None, **kwargs):
     flags = _NO_WINDOW if os.name == "nt" else 0
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+    return subprocess.run(cmd, capture_output=True, timeout=timeout,
                            creationflags=flags, **kwargs)
 
 
 def _popen_hidden(cmd, **kwargs):
     flags = _NO_WINDOW if os.name == "nt" else 0
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             text=True, creationflags=flags, **kwargs)
+                             text=True, errors="replace", creationflags=flags, **kwargs)
 
 
 def wsl_feature_enabled():
@@ -76,7 +93,7 @@ def wsl_feature_enabled():
 def distro_imported():
     try:
         result = _run_hidden(["wsl", "-l", "-q"], timeout=15)
-        names = [n.strip().replace("\x00", "") for n in result.stdout.splitlines()]
+        names = [n.strip().replace("\x00", "") for n in _decode_wsl_bytes(result.stdout).splitlines()]
         return DISTRO_NAME in names
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
@@ -145,7 +162,7 @@ def import_distro(tarball_path, log):
     if result.returncode == 0:
         log("Import complete.")
         return True
-    log(f"Import failed: {result.stderr.strip()[:300]}")
+    log(f"Import failed: {_decode_wsl_bytes(result.stderr).strip()[:300]}")
     return False
 
 
@@ -267,32 +284,36 @@ def build_ui():
     start_btn.configure(command=do_start, state="disabled")
 
     def setup_flow():
-        if not wsl_feature_enabled():
-            set_status("Setting up WSL2 …", ok=False)
-            if not install_wsl_feature(log_line):
-                set_status("WSL2 setup incomplete — see the log below.", ok=False)
-                return
-
-        if not distro_imported():
-            set_status("Downloading HexStrike image …", ok=True)
-            with tempfile.TemporaryDirectory() as tmp:
-                tarball = Path(tmp) / "hexstrike-wsl-rootfs.tar.gz"
-
-                def progress(pct, text):
-                    if pct >= 0:
-                        set_status(f"Downloading HexStrike image — {pct}% ({text})")
-                    else:
-                        log_line(text)
-
-                if not download_rootfs(tarball, progress):
-                    set_status("Download failed — see the log below.", ok=False)
-                    return
-                if not import_distro(tarball, log_line):
-                    set_status("Import failed — see the log below.", ok=False)
+        try:
+            if not wsl_feature_enabled():
+                set_status("Setting up WSL2 …", ok=False)
+                if not install_wsl_feature(log_line):
+                    set_status("WSL2 setup incomplete — see the log below.", ok=False)
                     return
 
-        set_status("Ready.", ok=True)
-        root.after(0, lambda: start_btn.configure(state="normal"))
+            if not distro_imported():
+                set_status("Downloading HexStrike image …", ok=True)
+                with tempfile.TemporaryDirectory() as tmp:
+                    tarball = Path(tmp) / "hexstrike-wsl-rootfs.tar.gz"
+
+                    def progress(pct, text):
+                        if pct >= 0:
+                            set_status(f"Downloading HexStrike image — {pct}% ({text})")
+                        else:
+                            log_line(text)
+
+                    if not download_rootfs(tarball, progress):
+                        set_status("Download failed — see the log below.", ok=False)
+                        return
+                    if not import_distro(tarball, log_line):
+                        set_status("Import failed — see the log below.", ok=False)
+                        return
+
+            set_status("Ready.", ok=True)
+            root.after(0, lambda: start_btn.configure(state="normal"))
+        except Exception as e:
+            log_line(f"Unexpected error during setup: {e!r}")
+            set_status("Setup failed unexpectedly — see the log below.", ok=False)
 
     threading.Thread(target=setup_flow, daemon=True).start()
 
